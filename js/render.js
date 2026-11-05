@@ -36,7 +36,7 @@
 // makes FFmpeg fail loudly rather than render something false.
 
 import { getExportSpec } from "./export.js";
-import { transitionById } from "./model.js";
+import { isLaneHidden, transitionById } from "./model.js";
 
 const escFilterPath = (p) =>
   String(p).replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
@@ -55,13 +55,19 @@ export function buildRenderArgs(project, outputPath, opts = {}) {
   });
   const spec = getExportSpec(project);
   const { width: W, height: H, fps: F } = spec;
+  const mainMuted = Boolean(project.laneState?.muted?.main);
   const hasAudio = main.map((it, i) =>
-    opts.hasAudio ? Boolean(opts.hasAudio[i]) : it.kind !== "still"
+    mainMuted ? false : opts.hasAudio ? Boolean(opts.hasAudio[i]) : it.kind !== "still"
   );
+  if (mainMuted) warnings.push("The main track is MUTED — its audio renders as silence.");
+  const musicMuted = Boolean(project.laneState?.muted?.music);
+  if (musicMuted && project.music?.src) warnings.push("The music bed is MUTED — left out of the mix.");
 
-  const layerCount = (project.tracks.layers || []).reduce((s, l) => s + l.length, 0);
-  if (layerCount) warnings.push(`${layerCount} layer (picture-in-picture) item(s) are not in the render yet — main track only.`);
-  if ((project.tracks.background || []).length) warnings.push("Background lane items are not in the render yet.");
+  const visibleLayers = (project.tracks.layers || [])
+    .reduce((s, l, li) => s + (isLaneHidden(project, "layer", li) ? 0 : l.length), 0);
+  if (visibleLayers) warnings.push(`${visibleLayers} layer (picture-in-picture) item(s) are not in the render yet — main track only.`);
+  const visibleBg = isLaneHidden(project, "background") ? 0 : (project.tracks.background || []).length;
+  if (visibleBg) warnings.push("Background lane items are not in the render yet.");
   if (main.some((i) => i.keyGreen)) warnings.push("Green-screen keying is not in the render yet — keyed clips render as normal clips.");
 
   const args = ["-y"];
@@ -76,15 +82,16 @@ export function buildRenderArgs(project, outputPath, opts = {}) {
       args.push("-t", String(item.duration), "-i", item.src);
     }
   });
+  const musicActive = Boolean(project.music?.src) && !musicMuted;
   // Extra silent-audio inputs for items with no audio stream.
   const silenceIdx = new Map();
   main.forEach((item, i) => {
     if (!hasAudio[i]) {
-      silenceIdx.set(i, main.length + silenceIdx.size + (project.music?.src ? 1 : 0));
+      silenceIdx.set(i, main.length + silenceIdx.size + (musicActive ? 1 : 0));
     }
   });
-  const musicIdx = project.music?.src ? main.length : -1;
-  if (project.music?.src) args.push("-stream_loop", "-1", "-i", project.music.src);
+  const musicIdx = musicActive ? main.length : -1;
+  if (musicActive) args.push("-stream_loop", "-1", "-i", project.music.src);
   for (const [, idx] of silenceIdx) {
     args.push("-f", "lavfi", "-t", String(Math.max(...main.map((m) => m.duration))),
       "-i", "anullsrc=r=48000:cl=stereo");
@@ -172,7 +179,9 @@ export function buildRenderArgs(project, outputPath, opts = {}) {
 
   // --- Captions burn-in ---------------------------------------------------------
   let finalVideo = mainVideo;
-  if (project.captionMode === "srt") {
+  if (isLaneHidden(project, "caption") && project.captions?.some((c) => c.text)) {
+    warnings.push("The Captions lane is HIDDEN — captions were left out of the render.");
+  } else if (project.captionMode === "srt") {
     // Sidecar mode: picture stays clean; the .srt ships beside the video.
   } else if (project.captions?.some((c) => c.text)) {
     if (opts.srtPath) {
@@ -188,7 +197,7 @@ export function buildRenderArgs(project, outputPath, opts = {}) {
 
   // --- Music mix + ducking + loudness -------------------------------------------
   let finalAudio = mainAudio;
-  if (project.music?.src) {
+  if (musicActive) {
     filters.push(
       `[${musicIdx}:a]atrim=0:${durationOut},asetpts=PTS-STARTPTS,` +
       `aresample=48000,volume=${project.music.volume ?? 0.8}[mus]`

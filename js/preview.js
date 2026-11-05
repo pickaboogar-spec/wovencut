@@ -12,7 +12,7 @@
 // the clip's numbers say, and Paul's projects say 0. Crossfades only ever
 // happen across a cut boundary, between segment n and n+1.
 
-import { backgroundAt, captionAt, itemStartTimes, layersAt, projectDuration } from "./model.js";
+import { backgroundAt, captionAt, isLaneHidden, itemStartTimes, projectDuration } from "./model.js";
 
 export class Preview {
   constructor(canvas) {
@@ -137,7 +137,8 @@ export class Preview {
     if (idx === -1) idx = project.tracks.main.length - 1;
 
     // BACKGROUND lane first: it fills the frame behind everything else.
-    const bg = backgroundAt(project, tc);
+    // A hidden lane (pro pass 2 lane state) leaves the preview entirely.
+    const bg = isLaneHidden(project, "background") ? null : backgroundAt(project, tc);
     if (bg) this.drawFrame(bg, 1, 0, 0, canvas.width, canvas.height);
 
     const item = project.tracks.main[idx];
@@ -208,7 +209,15 @@ export class Preview {
     }
 
     // Layer lanes over the top, bottom lane first so higher layers win.
-    for (const o of layersAt(project, tc)) {
+    // Hidden layer lanes are skipped (lane state, pro pass 2).
+    const visibleLayers = [];
+    (project.tracks.layers || []).forEach((lane, li) => {
+      if (isLaneHidden(project, "layer", li)) return;
+      for (const o of lane) {
+        if (tc >= o.start && tc < o.start + o.duration) visibleLayers.push(o);
+      }
+    });
+    for (const o of visibleLayers) {
       const w = (canvas.width * o.sizePct) / 100;
       const h = (w * 9) / 16;
       const m = 24;
@@ -226,7 +235,9 @@ export class Preview {
       ctx.restore();
     }
 
-    const cap = captionAt(project, Math.min(tc, total - 0.001));
+    const cap = isLaneHidden(project, "caption")
+      ? null
+      : captionAt(project, Math.min(tc, total - 0.001));
     if (cap) this.drawCaption(cap.text);
   }
 

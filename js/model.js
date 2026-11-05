@@ -199,6 +199,10 @@ export function emptyProject(title = "Untitled video") {
     // duckAmount (0–1, the fraction of volume removed while the main
     // track is loud). Modelled from the clips' real decoded waveforms.
     music: { src: null, volume: 0.8, duck: false, duckAmount: 0.6 },
+    laneState: {
+      hidden: { layers: [], background: false, captions: false },
+      muted: { main: false, music: false },
+    },
     // Credit for the original creator (reaction videos, Paul Nov 4 2026):
     // filled in the Reaction panel, written into the YouTube description
     // automatically at export — crediting the original is not optional
@@ -339,6 +343,30 @@ function fillPass2Defaults(project) {
   return project;
 }
 
+// Lane state (pro pass 2, later in the day): per-lane Hide (eye) and
+// Mute toggles, the track-header furniture every pro editor has.
+//   hidden: layers[] per layer lane, background, captions — hidden lanes
+//     stay on the timeline (dimmed) but leave the preview and the render.
+//   muted: main (its audio renders as silence), music (left out of the
+//     mix). Filled in by fillLaneState for older files.
+export function fillLaneState(project) {
+  const ls = project.laneState || {};
+  ls.hidden = { layers: [], background: false, captions: false, ...(ls.hidden || {}) };
+  if (!Array.isArray(ls.hidden.layers)) ls.hidden.layers = [];
+  ls.muted = { main: false, music: false, ...(ls.muted || {}) };
+  project.laneState = ls;
+  return project;
+}
+
+export function isLaneHidden(project, lane, layerIdx = 0) {
+  const h = project.laneState?.hidden;
+  if (!h) return false;
+  if (lane === "background") return Boolean(h.background);
+  if (lane === "caption") return Boolean(h.captions);
+  if (lane === "layer") return Boolean(h.layers?.[layerIdx]);
+  return false;
+}
+
 export function migrateProject(project) {
   if (!project) return project;
   if (project.version >= 3) {
@@ -348,7 +376,7 @@ export function migrateProject(project) {
     project.settings = { width: 1920, height: 1080, fps: 30, ...(project.settings || {}) };
     project.markers = project.markers || [];
     project.exportPreset = project.exportPreset || "youtube-1080";
-    return fillPass2Defaults(project);
+    return fillLaneState(fillPass2Defaults(project));
   }
   if (project.version === 2) {
     project.tracks.layers = [project.tracks.overlay || []];
@@ -359,7 +387,7 @@ export function migrateProject(project) {
     project.markers = project.markers || [];
     project.exportPreset = project.exportPreset || "youtube-1080";
     project.version = 3;
-    return fillPass2Defaults(project);
+    return fillLaneState(fillPass2Defaults(project));
   }
   const main = (project.stills || []).map((s) => ({
     ...newMainItem({ label: s.label, kind: s.kind === "segue" ? "segue" : "still", duration: s.duration }),
@@ -369,7 +397,7 @@ export function migrateProject(project) {
     generated: s.generated,
     provider: s.provider,
   }));
-  return fillPass2Defaults({
+  return fillLaneState(fillPass2Defaults({
     version: 3,
     title: project.title || "Untitled video",
     settings: { width: 1920, height: 1080, fps: 30 },
@@ -379,7 +407,7 @@ export function migrateProject(project) {
     captions: (project.captions || []).map((c) => ({ id: uid("t"), ...c })),
     music: project.music || { src: null, volume: 0.8 },
     sourceCredit: { title: "", creator: "", url: "" },
-  });
+  }));
 }
 
 // --- Timecode ----------------------------------------------------------------

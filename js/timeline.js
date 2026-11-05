@@ -27,7 +27,7 @@
 // "If a first-time user can't guess what a button does, the button is wrong."
 
 import {
-  baseName, formatClock, itemStartTimes, kindFromPath, newBackgroundItem,
+  baseName, fillLaneState, formatClock, isLaneHidden, itemStartTimes, kindFromPath, newBackgroundItem,
   newMainItem, newOverlayItem, projectDuration, syncLockedItems, transitionById, uid,
 } from "./model.js";
 import { peaksFromBytes, peaksFromFile, waveformSvg } from "./waveform.js";
@@ -381,10 +381,28 @@ export class TimelineEditor {
     const widthPx = Math.ceil(total * pps) + 240;
     const sel = this.selection;
 
-    const laneRow = (lane, icon, name, hint, innerHTML) => `
-      <div class="tl-lane" data-lane="${lane}">
+    // Lane-state toggles (pro pass 2, track-header furniture): Hide
+    // takes a lane out of the preview + render while keeping it on the
+    // timeline (dimmed); Mute takes a lane's sound out of the render.
+    const ls = fillLaneState(project).laneState;
+    const hideBtn = (key, hidden, what) => `
+      <button type="button" class="tl-lane-toggle" data-lane-toggle="${key}"
+        title="${hidden
+          ? `This ${what} is HIDDEN: it stays on the timeline but is out of the preview and the export. Click to show it again.`
+          : `Hide this ${what}: it stays on the timeline (dimmed) but leaves the preview and the export. Click again to bring it back.`}">
+        ${hidden ? "🙈 Show" : "👁️ Hide"}</button>`;
+    const muteBtn = (key, muted, what) => `
+      <button type="button" class="tl-lane-toggle" data-lane-toggle="${key}"
+        title="${muted
+          ? `This ${what} is MUTED in the export. Click to unmute it.`
+          : `Mute this ${what} in the export — the picture still renders, its sound doesn't. Click again to unmute.`}">
+        ${muted ? "🔇 Unmute" : "🔊 Mute"}</button>`;
+
+    const laneRow = (lane, icon, name, hint, innerHTML, toggle = "", off = false) => `
+      <div class="tl-lane ${off ? "tl-lane-off" : ""}" data-lane="${lane}">
         <div class="tl-lane-label" title="${hint}">
           <span class="tl-lane-icon">${icon}</span> ${name}
+          ${toggle}
         </div>
         <div class="tl-track" data-track="${lane}" style="width:${widthPx}px">${innerHTML}</div>
       </div>`;
@@ -455,7 +473,9 @@ export class TimelineEditor {
       .map(({ laneItems, li }) => laneRow(
         `layer:${li}`, "🪟", `Layer ${li + 1}`,
         `Layer ${li + 1} — floats over everything below it${li === project.tracks.layers.length - 1 ? " (top layer)" : ""}. Drop clips or images here.`,
-        layerBlocks(li) || `<div class="tl-empty">Drop a clip or image here to float it over the lanes below.</div>`
+        layerBlocks(li) || `<div class="tl-empty">Drop a clip or image here to float it over the lanes below.</div>`,
+        hideBtn(`layer:${li}`, isLaneHidden(project, "layer", li), "layer"),
+        isLaneHidden(project, "layer", li)
       )).join("");
 
     // Caption blocks
@@ -529,10 +549,14 @@ export class TimelineEditor {
               🧲 Snapping: ${this.snapping ? "On" : "Off"}</button>
           </div>
           ${layerRows}
-          ${laneRow("main", "🎬", "Main video", "The main track. Drop video clips and images here; drag blocks left/right to reorder them.", mainBlocks || `<div class="tl-empty">Drop video clips or images here — or press 🎞️ Import Clips.</div>`)}
-          ${laneRow("background", "🌄", "Background", "Background lane: fills the frame BEHIND the main video. Mark a main clip as green screen and this shows through where the green was.", bgBlocks || `<div class="tl-empty">Drop a clip or image here to sit behind the main video (green-screen backdrop).</div>`)}
-          ${laneRow("caption", "💬", "Captions", "Caption lane: words that appear on screen, timed to the video.", capBlocks)}
-          ${laneRow("music", "🎵", "Music", "Music lane: one audio file plays under the whole video.", musicBlock)}
+          ${laneRow("main", "🎬", "Main video", "The main track. Drop video clips and images here; drag blocks left/right to reorder them.", mainBlocks || `<div class="tl-empty">Drop video clips or images here — or press 🎞️ Import Clips.</div>`,
+            muteBtn("main", Boolean(ls.muted.main), "main track"), Boolean(ls.muted.main))}
+          ${laneRow("background", "🌄", "Background", "Background lane: fills the frame BEHIND the main video. Mark a main clip as green screen and this shows through where the green was.", bgBlocks || `<div class="tl-empty">Drop a clip or image here to sit behind the main video (green-screen backdrop).</div>`,
+            hideBtn("background", isLaneHidden(project, "background"), "background lane"), isLaneHidden(project, "background"))}
+          ${laneRow("caption", "💬", "Captions", "Caption lane: words that appear on screen, timed to the video.", capBlocks,
+            hideBtn("caption", isLaneHidden(project, "caption"), "captions lane"), isLaneHidden(project, "caption"))}
+          ${laneRow("music", "🎵", "Music", "Music lane: one audio file plays under the whole video.", musicBlock,
+            muteBtn("music", Boolean(ls.muted.music), "music bed"), Boolean(ls.muted.music))}
           <div class="tl-playhead" style="left:${LANE_LABEL_W + this.playheadT * pps}px" title="Playhead — where the preview is up to"></div>
         </div>
       </div>`;
@@ -639,6 +663,24 @@ export class TimelineEditor {
     });
 
     // Zoom + snapping controls.
+    // Lane-state toggles (hide / mute) in the lane headers.
+    root.querySelectorAll("[data-lane-toggle]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.laneToggle;
+        const ls = fillLaneState(this.project).laneState;
+        if (key === "main") ls.muted.main = !ls.muted.main;
+        else if (key === "music") ls.muted.music = !ls.muted.music;
+        else if (key === "background") ls.hidden.background = !ls.hidden.background;
+        else if (key === "caption") ls.hidden.captions = !ls.hidden.captions;
+        else if (key.startsWith("layer:")) {
+          const li = layerIndex(key);
+          ls.hidden.layers[li] = !ls.hidden.layers[li];
+        }
+        this.hooks.onChange();
+        this.render();
+      });
+    });
+
     root.querySelector('[data-zoom="in"]')?.addEventListener("click", () => this.zoomBy(1.4));
     root.querySelector('[data-zoom="out"]')?.addEventListener("click", () => this.zoomBy(1 / 1.4));
     root.querySelector('[data-zoom="fit"]')?.addEventListener("click", () => this.zoomFit());

@@ -240,6 +240,15 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 .tl-marker:hover { transform: translateX(-3px) scale(1.25); }
 .tl-marker.selected { outline: 2px solid var(--gold); border-radius: 4px; }
 .tl-block.tl-abs { cursor: ew-resize; touch-action: none; }
+/* Lane-state toggles (pro pass 2): Hide / Mute in the lane headers */
+.tl-lane-toggle {
+  display: block; margin-top: 3px; padding: 1px 6px;
+  font-size: 11px; line-height: 1.5; cursor: pointer;
+  background: rgba(255,255,255,0.07); color: inherit;
+  border: 1px solid var(--panel-edge); border-radius: 6px;
+}
+.tl-lane-toggle:hover { border-color: var(--gold); }
+.tl-lane-off .tl-track { opacity: 0.45; }
 .tl-wave {
   position: absolute; left: 3px; right: 3px; bottom: 2px;
   width: calc(100% - 6px); height: 13px; pointer-events: none; opacity: 0.75;

@@ -246,4 +246,35 @@ assert.equal(rippleTrimToPlayhead(rt2, 4, "end"), null);  // boundary: no-op
 assert.equal(rippleTrimToPlayhead(rt2, 99, "start"), null); // outside: no-op
 assert.equal(rt2.tracks.main[0].fadeIn, 0); // first-frame rule untouched
 
+// --- Pro pass 2: lane state (hide / mute) ---------------------------------------
+import { fillLaneState, isLaneHidden } from "../js/model.js";
+import { buildRenderArgs } from "../js/render.js";
+{
+  const p = fillLaneState({});
+  p.laneState.hidden.layers[1] = true;
+  p.laneState.hidden.captions = true;
+  assert.equal(isLaneHidden(p, "layer", 1), true);
+  assert.equal(isLaneHidden(p, "layer", 0), false);
+  assert.equal(isLaneHidden(p, "caption"), true);
+  assert.equal(isLaneHidden(p, "background"), false);
+  assert.equal(isLaneHidden(p, "main"), false, "main has no hide, only mute");
+  const built = buildRenderArgs({
+    title: "t", durationMode: "auto", loudnessNormalize: false, captionMode: "burn",
+    laneState: { hidden: { layers: [], background: false, captions: true }, muted: { main: true, music: true } },
+    tracks: { main: [
+      { id: "a", kind: "clip", src: "a.mp4", trimIn: 0, duration: 2, fadeIn: 0, fadeOut: 0 },
+    ], layers: [[]], background: [] },
+    captions: [{ id: "c", start: 0, duration: 1, text: "x" }],
+    music: { src: "m.wav", volume: 0.8 },
+  }, "out.mp4", { hasAudio: [true] });
+  assert.ok(built.warnings.some((w) => w.includes("MUTED") && w.includes("main")));
+  assert.ok(built.warnings.some((w) => w.includes("MUTED") && w.includes("music bed")));
+  assert.ok(built.warnings.some((w) => w.includes("HIDDEN")));
+  assert.ok(!built.args.includes("m.wav"), "muted music is not an input");
+  assert.ok(!built.args.join(" ").includes("subtitles="), "hidden captions are not burned in");
+  // Migration carries lane state too.
+  const mp = migrateProject({ version: 1, title: "old" });
+  assert.ok(mp.laneState && mp.laneState.muted.main === false);
+}
+
 console.log("ALL NODE TESTS PASSED");
