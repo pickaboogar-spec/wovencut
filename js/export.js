@@ -26,6 +26,8 @@
 //   - Music mixes under the picture at project volume.
 //   Output: MP4 (H.264 + AAC), long-form-YouTube friendly (1920×1080).
 
+import { transitionById } from "./model.js";
+
 // Export presets (pro-upgrade batch, Nov 5 2026): one-tap shapes for the
 // places videos actually go, like the preset menus in pro editors. A
 // preset sets ONLY the frame size and frame rate of the render — every
@@ -66,7 +68,16 @@ export function planExport(project) {
     firstFrame:
       "first clip at full strength from t=0 — its fade-in defaults to 0 (Paul's rule); " +
       "no fade filter is emitted for a 0 fade-in, and no black lead-in exists in the graph",
-    captions: "burned in, preview-identical styling",
+    captions: project.captionMode === "srt"
+      ? "sidecar .srt file — the picture stays clean; upload the .srt next to the video (💾 Export Captions in the Captions panel)"
+      : "burned in, preview-identical styling",
+    // Loudness (pro pass 2): −14 LUFS integrated / −1 dBTP is the level
+    // YouTube and TikTok normalise uploads to. The loudnorm filter runs
+    // on the FINAL audio mix at render time (Phase 4) — the toggle
+    // shapes the plan today and the render when Phase 4 lands.
+    loudness: project.loudnessNormalize
+      ? "normalise to −14 LUFS, true peak −1 dB (FFmpeg loudnorm on the final audio mix, at render time)"
+      : "off — audio renders at its recorded level",
     music: project.music?.src || "none chosen",
   };
 }
@@ -98,15 +109,33 @@ export function buildFfmpegArgs(project, outputPath = "wovencut-export.mp4") {
     }
   });
 
-  // Crossfades: noted per boundary; Phase 4 wires xfade offsets from the
+  // Transitions: noted per boundary with the FFmpeg xfade name each one
+  // maps to (pro pass 2 — the menu now covers dip-to-black/white, wipe
+  // and slide alongside crossfade). Phase 4 wires xfade offsets from the
   // cumulative starts. Cuts need no filter.
   main.forEach((item, i) => {
-    if (i > 0 && item.transitionIn === "crossfade") {
+    if (i > 0 && item.transitionIn && item.transitionIn !== "cut") {
+      const t = transitionById(item.transitionIn);
       filters.push(
-        `# xfade boundary before clip ${i + 1}: duration=${item.transitionDuration}s`
+        `# xfade boundary before clip ${i + 1}: transition=${t.xfade} duration=${item.transitionDuration}s`
       );
     }
   });
+
+  // Captions at export (pro pass 2): burn-in draws them into the picture
+  // with the preview's styling; sidecar mode leaves the picture clean
+  // and the .srt travels as its own file.
+  if (project.captionMode === "srt") {
+    filters.push("# captions: sidecar .srt (no burn-in filter — picture stays clean)");
+  } else if (project.captions?.some((c) => c.text)) {
+    filters.push("# captions: subtitles=<captions.srt>:force_style='FontSize=22,BackColour=&H99000000,BorderStyle=4' (burn-in, preview styling)");
+  }
+
+  // Loudness normalisation (pro pass 2): single-pass loudnorm on the
+  // final mixed audio. −14 LUFS / −1 dBTP is the YouTube + TikTok target.
+  if (project.loudnessNormalize) {
+    filters.push("# loudnorm=I=-14:TP=-1:LRA=11 applied to the final audio mix");
+  }
 
   // LAYERING (Paul, Nov 4 2026) — the composite stack, back to front:
   // background lane → main video (green-screen clips keyed) → layer lanes.
@@ -337,9 +366,22 @@ export function mountExportPanel(project, container, hooks = {}) {
         ${EXPORT_PRESETS.map((p) => `<option value="${p.id}" ${p.id === (project.exportPreset || "youtube-1080") ? "selected" : ""}>${p.label}</option>`).join("")}
       </select>
     </label>` +
+    `<label class="insp-field" title="YouTube and TikTok quietly turn every upload to the same loudness (−14 LUFS). Tick this and the export is normalised to that level itself, so your video sounds as loud as you mixed it instead of being turned down by the platform. It is applied by FFmpeg's loudnorm filter to the finished audio when the video renders (Phase 4).">
+      <span class="insp-label">🔊 Loudness</span>
+      <span><input type="checkbox" id="export-loudness" ${project.loudnessNormalize ? "checked" : ""}> Normalise loudness for YouTube / TikTok (−14 LUFS)</span>
+    </label>` +
+    `<label class="insp-field" title="Burned in: the captions become part of the picture, exactly as the preview shows them — they always show, on every player. Sidecar file: the picture stays clean and a separate .srt subtitle file travels with the video — upload it next to the video and viewers can turn captions on or off.">
+      <span class="insp-label">💬 Captions in the export</span>
+      <select id="export-caption-mode">
+        <option value="burn" ${project.captionMode !== "srt" ? "selected" : ""}>🔥 Burned into the picture — always visible</option>
+        <option value="srt" ${project.captionMode === "srt" ? "selected" : ""}>📄 Sidecar .srt file — viewers can switch them on/off</option>
+      </select>
+    </label>` +
     `<p class="stub-note">Engine: ${plan.engine}.<br>` +
     `Preset: ${plan.preset}.<br>` +
     `Output: ${plan.output}<br>` +
+    `Loudness: ${plan.loudness}.<br>` +
+    `Captions: ${plan.captions}.<br>` +
     `First frame: ${plan.firstFrame}.<br>` +
     `Clips: ${plan.clips} · Layer items: ${plan.overlays} · Background items: ${plan.background} · ` +
     `Green-screen clips: ${plan.keyedClips} · ` +
@@ -351,6 +393,14 @@ export function mountExportPanel(project, container, hooks = {}) {
     ytSection(project);
   container.querySelector("#export-preset")?.addEventListener("change", (e) => {
     project.exportPreset = e.target.value;
+    hooks.onChange?.();
+  });
+  container.querySelector("#export-loudness")?.addEventListener("change", (e) => {
+    project.loudnessNormalize = e.target.checked;
+    hooks.onChange?.();
+  });
+  container.querySelector("#export-caption-mode")?.addEventListener("change", (e) => {
+    project.captionMode = e.target.value;
     hooks.onChange?.();
   });
   const btn = container.querySelector('[data-action="run-export"]');

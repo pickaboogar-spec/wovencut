@@ -95,4 +95,69 @@ const mid = sp.markers[0].id;
 removeItem(sp, "marker", mid);
 assert.equal(sp.markers.length, 1);
 
+// --- Pro pass 2: SRT import/export -------------------------------------------
+import {
+  captionsToSrt, parseSrt, importSrtInto, formatSrtTime,
+} from "../js/captions.js";
+import { TRANSITIONS, transitionById } from "../js/model.js";
+
+assert.equal(formatSrtTime(0), "00:00:00,000");
+assert.equal(formatSrtTime(65.25), "00:01:05,250");
+assert.equal(formatSrtTime(3661.5), "01:01:01,500");
+const srtSrc = sampleProject();
+const srtText = captionsToSrt(srtSrc);
+assert.match(srtText, /1\n00:00:00,000 --> 00:00:04,000\nThe gate is open\./);
+const roundTrip = parseSrt(srtText);
+assert.equal(roundTrip.length, 3);
+assert.equal(roundTrip[1].text, "The rows remember every hand that planted them.");
+assert.deepEqual([roundTrip[2].start, roundTrip[2].end], [10, 15]);
+// Tolerant parsing: CRLF, dot milliseconds, no sequence numbers, junk block
+const messy = "00:00:01.500 --> 00:00:03.000\r\nHello there\r\n\r\nnot a caption block\r\n\r\n7\n00:00:05,000 --> 00:00:06,250\nSecond line\nspans two\n";
+const messyParsed = parseSrt(messy);
+assert.equal(messyParsed.length, 2);
+assert.equal(messyParsed[0].start, 1.5);
+assert.equal(messyParsed[1].text, "Second line\nspans two");
+const imp = emptyProject("imp");
+assert.equal(importSrtInto(imp, srtText), 3);
+assert.equal(imp.captions.length, 3);
+// Empty-word captions are skipped on export
+const ew = emptyProject("ew");
+ew.captions = [{ id: "x", start: 0, end: 2, text: "  " }];
+assert.equal(captionsToSrt(ew), "");
+
+// --- Pro pass 2: loudness + caption mode reach the plan ----------------------
+const lp = sampleProject();
+lp.loudnessNormalize = true;
+assert.match(planExport(lp).loudness, /−14 LUFS/);
+assert.match(buildFfmpegArgs(lp, "o.mp4").join(" "), /loudnorm=I=-14:TP=-1:LRA=11/);
+lp.loudnessNormalize = false;
+assert.match(planExport(lp).loudness, /^off/);
+assert.doesNotMatch(buildFfmpegArgs(lp, "o.mp4").join(" "), /loudnorm/);
+lp.captionMode = "srt";
+assert.match(planExport(lp).captions, /sidecar/);
+lp.captionMode = "burn";
+assert.match(planExport(lp).captions, /burned in/);
+
+// --- Pro pass 2: transitions table -------------------------------------------
+assert.deepEqual(TRANSITIONS.map((t) => t.id),
+  ["cut", "crossfade", "dipblack", "dipwhite", "wipeleft", "slideleft"]);
+assert.equal(transitionById("dipblack").xfade, "fadeblack");
+assert.equal(transitionById("nonsense").id, "cut");
+const tp = sampleProject();
+tp.tracks.main[1].transitionIn = "dipblack";
+assert.match(buildFfmpegArgs(tp, "o.mp4").join(" "), /transition=fadeblack/);
+
+// --- Pro pass 2: migration fills new defaults --------------------------------
+const old3 = {
+  version: 3, title: "old3",
+  tracks: { main: [], layers: [[]], background: [] },
+  captions: [], music: { src: null, volume: 0.5 },
+};
+const mig3 = migrateProject(structuredClone(old3));
+assert.equal(mig3.loudnessNormalize, true);
+assert.equal(mig3.captionMode, "burn");
+assert.equal(mig3.music.duck, false);
+assert.equal(mig3.music.duckAmount, 0.6);
+assert.equal(mig3.music.volume, 0.5); // user's own value survives
+
 console.log("ALL NODE TESTS PASSED");

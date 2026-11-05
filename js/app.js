@@ -126,7 +126,12 @@ function mountPanels() {
   mountSettingsPanel(project, document.getElementById("panel-settings"), {
     onChange: refresh,
   });
-  mountCaptionsEditor(project, document.getElementById("panel-captions"));
+  mountCaptionsEditor(project, document.getElementById("panel-captions"), {
+    onChange: refresh,
+    saveTextFile: desktop
+      ? (name, text) => desktop.saveTextFile(name, text)
+      : null,
+  });
   mountMusicPanel(project, document.getElementById("panel-music"));
   mountExportPanel(project, document.getElementById("panel-export"), {
     onChange: refresh,
