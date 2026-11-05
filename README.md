@@ -51,26 +51,36 @@ fade only if you mean to.
   - 🎵 **Music** — drop an audio file; volume control (playback sync is
     Phase 3).
 - **Inspector** for the selected item: duration, **trim** (skip-from-start),
-  **fade in / fade out**, **transition in: Cut or Crossfade** with
-  adjustable crossfade length, and **Split at Playhead**.
-- **Preview player** that honours all of it — fades, crossfades, PiP
+  **fade in / fade out**, **transition in** (Cut, Crossfade, Dip to Black,
+  Dip to White, Wipe, Slide) with adjustable length, **Split at
+  Playhead**, and ripple trims (Q/W).
+- **Preview player** that honours all of it — fades, transitions, PiP
   overlays, captions — opening on segment one at full strength.
-- **Save / open projects** as plain JSON files.
+- **Save / open projects** as plain JSON files, plus **auto-save with
+  crash recovery** and **snapshots** (version history) in the app.
+- **Real export (Phase 4, pro pass 2):** the desktop app renders a real
+  MP4 with a bundled FFmpeg — transitions, fades, music mixing with
+  auto-ducking, −14 LUFS loudness normalization, and captions burned in
+  or written as a sidecar .srt. Layer/background lanes and green-screen
+  keying are not in render v1; the app warns instead of dropping them
+  silently.
 
 ### Honestly stubbed (labelled in the app, planned in WORKFLOW.md)
 | Piece | Status |
 |---|---|
-| Export | Full FFmpeg plan + argument builder are real; the render itself waits for Phase 4 (bundled FFmpeg). The app says so — nothing fake-renders. |
 | AI segues (Replicate) | Panel + token-safety design; generation is Phase 5, on your own account. |
 | Muse co-editor | Panel + suggestion interface; wiring is Phase 6, on your own Muse. |
 | Shirt-logo overlay, trademark blur | Later phases (7–8): keyframed tracking first, assisted tracking last. Blurring is a convenience, never a legal guarantee. |
+| Real media in preview | The preview still draws labelled placeholder frames; real decoded playback is Phase 3. Waveforms ARE decoded from your real files. |
 
-### Project format (v2)
+### Project format (v3)
 Plain JSON: `tracks.main` (clips with `trimIn`, `fadeIn`, `fadeOut`,
 `transitionIn`, `transitionDuration`; segue items flagged
-`generated: true`), `tracks.overlay` (PiP items with `start`, `corner`,
-`sizePct`), `captions` (timed in seconds), and `music` (a file reference
-only). See `js/model.js`.
+`generated: true`), `tracks.layers` (stackable PiP lanes with `start`,
+`corner`, `sizePct`), `tracks.background`, `captions` (timed in
+seconds; SRT import/export), `music` (a file reference plus volume and
+ducking), `markers`, and `laneState` (per-lane hide/mute). See
+`js/model.js`.
 
 ## Run it (development)
 
@@ -80,7 +90,7 @@ npm start          # opens the Electron app
 ```
 
 The renderer (`index.html` + `js/` + `css/`) also opens in a plain browser
-for quick UI checks; native dialogs and the export stub need the desktop
+for quick UI checks; native dialogs and video rendering need the desktop
 shell.
 
 ## Get the Windows .exe

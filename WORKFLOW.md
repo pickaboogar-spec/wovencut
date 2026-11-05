@@ -196,6 +196,20 @@ recorded") before the next phase starts.
   and, by default, the first clip emits no fade filter (Paul's rule).
 - **Review gate:** Paul exports a real long-form video and posts it; the
   open-on-black check is part of acceptance.
+- **Status (2026-11-05, pro pass 2):** the renderer is BUILT and proven
+  headlessly — `js/render.js` builds a runnable graph (scenes split at
+  cuts; xfade/acrossfade within; concat between; fades; music mix +
+  sidechain ducking; loudnorm; caption burn-in via generated SRT), the
+  main process spawns bundled ffmpeg-static (asarUnpack) with a system
+  fallback, with progress + cancel. An integration test rendered real
+  generated media under BOTH ffmpeg builds: exact expected duration,
+  −13.7 LUFS measured against the −14 target, and black detected ONLY
+  at a deliberate dip-to-black — never at the open. Render v1 limits
+  (warned in-app, never silent): layer/background lanes and green-screen
+  keying are not composited yet; rendered length is shorter than the
+  timeline by the sum of transition durations (no clip handles yet).
+  The review gate above still stands: it completes when Paul exports a
+  real video from the packaged app.
 
 ### Phase 5 — Replicate segues
 - Per-cut "generate segue" action (✨ AI Segue): sends tail/head frames of
@@ -317,3 +331,23 @@ FOLLOWS something in the frame.
   headless-Chromium interaction tests + screenshots. NOT yet run: the
   .exe build (awaits the first GitHub Actions run on Paul's future
   repo) and Paul's hands-on review — same gate as Phase 1.
+- **2026-11-05 — Pro pass 2 delivered for review (Paul's ~2.5-hour
+  gauge session).** Built, in work-list order: (1) auto-save with crash
+  recovery + snapshots/version history; (2) SRT caption import AND
+  export; (3) −14 LUFS loudness toggle wired into plan + render;
+  (4) music auto-ducking (real decoded peaks drive the model, the
+  timeline draws the dip curve, render uses sidechain compression);
+  (5) transitions menu — cut, crossfade, dip to black, dip to white,
+  wipe, slide — through model + preview + planner + render; (6) Phase 4
+  real rendering (see the Phase 4 status note above); then from the gap
+  doc's next tier: (7) ripple trim Q/W; (8) per-lane Hide/Mute track
+  headers honoured by preview and render. Every item exercised in the
+  real UI headlessly (CDP + pixel checks) and/or by the repo test
+  suites (`tests/node-tests.mjs`, `tests/render-test.mjs`); the dip
+  gradient and the rendered black placement were verified numerically.
+  All locked rules held: first clip fade-in = 0 (asserted in tests AND
+  measured in the rendered file), beta labels kept, terms gate and
+  donation plumbing untouched, nothing removed. Full log:
+  `~/workspace/your_files/wovencut-pro-pass-2-log.md`. Still NOT run:
+  the Electron GUI and the .exe (same Phase 1 gate). Drive mirror of
+  the Code Vault still owed (batched; not part of this session).
