@@ -189,6 +189,12 @@ export function sampleProject() {
   p.tracks.background = [
     { ...newBackgroundItem({ label: "Backdrop — the valley behind", start: 0, duration: 15 }), hue: 190 },
   ];
+  // The corner cam is a locked reaction pair: it stays glued to the last
+  // main clip, so moving that clip moves the cam with it.
+  const cam = p.tracks.layers[0][0];
+  cam.lockToId = p.tracks.main[3].id;
+  cam.lockOffset = 0;
+  cam.reactionPair = true;
   p.captions = [
     { id: uid("t"), start: 0, end: 4, text: "The gate is open." },
     { id: uid("t"), start: 4, end: 8, text: "The rows remember every hand that planted them." },
@@ -229,6 +235,27 @@ export function layersAt(project, t) {
     }
   }
   return out;
+}
+
+// LOCKED PAIRS (Paul, Nov 4 2026 — reaction videos): a layer or
+// background item can be locked to a main clip (lockToId + lockOffset).
+// Locked items follow their main clip wherever it moves on the main
+// track, so the two stay in sync — e.g. your camera window locked to the
+// video you're reacting to. Called before every render/refresh.
+export function syncLockedItems(project) {
+  const starts = itemStartTimes(project);
+  const byId = new Map(project.tracks.main.map((it, i) => [it.id, starts[i]]));
+  const sync = (item) => {
+    if (!item.lockToId) return;
+    if (!byId.has(item.lockToId)) {
+      delete item.lockToId;
+      delete item.lockOffset;
+      return;
+    }
+    item.start = Math.max(0, +(byId.get(item.lockToId) + (item.lockOffset || 0)).toFixed(2));
+  };
+  for (const lane of project.tracks.layers || []) lane.forEach(sync);
+  (project.tracks.background || []).forEach(sync);
 }
 
 // Background item visible at time t (the lane behind the main video).

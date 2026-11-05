@@ -22,7 +22,7 @@
 
 import {
   baseName, itemStartTimes, kindFromPath, newBackgroundItem, newMainItem,
-  newOverlayItem, projectDuration,
+  newOverlayItem, projectDuration, syncLockedItems,
 } from "./model.js";
 
 // Lane ids: "main" | "layer:<n>" (n = 0 is the lane just above main;
@@ -238,6 +238,7 @@ export class TimelineEditor {
 
   render() {
     const project = this.project;
+    syncLockedItems(project); // locked pairs follow their main clip
     const total = Math.max(projectDuration(project), 10);
     const widthPx = Math.ceil(total * PX_PER_SEC) + 240;
     const sel = this.selection;
@@ -284,8 +285,8 @@ export class TimelineEditor {
            title="Layer ${li + 1} item: ${escapeHtml(o.label)} — starts ${o.start}s, ${o.duration}s long, ${o.corner}, ${o.sizePct}% wide. It draws OVER everything on the lanes below it. Click to select; position, corner and size live in the inspector.">
         <span class="tl-block-icon">🪟</span>
         <span class="tl-block-main">
-          <span class="tl-label">${escapeHtml(o.label)}</span>
-          <span class="tl-meta">${o.start}s + ${o.duration}s · ${o.corner} · ${o.sizePct}%</span>
+          <span class="tl-label">${o.lockToId ? "🔒 " : ""}${escapeHtml(o.label)}</span>
+          <span class="tl-meta">${o.start}s + ${o.duration}s · ${o.corner} · ${o.sizePct}%${o.lockToId ? " · locked to main clip" : ""}</span>
         </span>
         <button type="button" class="tl-del" data-del="${o.id}" data-lane="layer:${li}"
           title="Remove this item from layer ${li + 1}">✕</button>

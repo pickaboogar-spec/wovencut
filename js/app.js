@@ -8,8 +8,9 @@
 // No network calls, no telemetry, no accounts. Files stay on this machine.
 
 import {
-  RULES, baseName, itemStartTimes, migrateProject, projectDuration,
-  sampleProject, emptyProject,
+  RULES, baseName, itemStartTimes, migrateProject, newMainItem,
+  newOverlayItem, projectDuration, sampleProject, emptyProject,
+  syncLockedItems,
 } from "./model.js";
 import { TimelineEditor, layerIndex, removeItem, splitMainItemAt } from "./timeline.js";
 import { Preview } from "./preview.js";
@@ -51,6 +52,7 @@ const timeline = new TimelineEditor(document.getElementById("timeline"), {
 });
 
 function refresh() {
+  syncLockedItems(project); // locked pairs follow their main clip
   timeline.render();
   renderInspector();
   mountPanels();
@@ -175,6 +177,16 @@ function renderInspector() {
         <span class="insp-label">🔍 Size — <span id="size-readout">${o.sizePct}%</span> of frame width</span>
         <input type="range" id="f-size" min="10" max="60" step="1" value="${o.sizePct}">
       </label>
+      ${o.lockToId ? `
+      <p class="insp-meta">🔒 <strong>Locked to a main clip</strong> (${escapeHtml(p.tracks.main.find((m) => m.id === o.lockToId)?.label || "gone")}) — this window moves with that clip, so the two stay in sync. Changing "Starts at" shifts it relative to the clip.</p>
+      <div class="insp-actions">
+        <button type="button" class="tool-btn" data-act="unlock"
+          title="Unlock this window from its main clip — it will stay where it is when clips move">🔓 Unlock</button>
+      </div>` : `
+      <div class="insp-actions">
+        <button type="button" class="tool-btn" data-act="reaction"
+          title="Lock this window to the main clip under it — the reaction-video setup: the main clip plays, this window rides in the corner, and the two stay in sync when clips move">📺 Lock to main clip — reaction pair</button>
+      </div>`}
       <div class="insp-actions">
         <button type="button" class="tool-btn danger" data-act="delete"
           title="Remove this item from its layer">🗑️ Delete Layer Item</button>
@@ -182,8 +194,33 @@ function renderInspector() {
       <p class="stub-note">Full compositing (real video inside the window) renders
         in the Phase 4 export via FFmpeg's overlay filter; the preview already
         shows position and size.</p>`;
-    bindNum("f-start", (v) => { o.start = Math.max(0, v); });
+    bindNum("f-start", (v) => {
+      if (o.lockToId) {
+        // Locked: "starts at" edits the offset from its main clip.
+        const starts = itemStartTimes(p);
+        const idx = p.tracks.main.findIndex((m) => m.id === o.lockToId);
+        if (idx >= 0) o.lockOffset = +(Math.max(0, v) - starts[idx]).toFixed(2);
+      } else {
+        o.start = Math.max(0, v);
+      }
+    });
     bindNum("f-duration", (v) => { o.duration = Math.max(0.1, v); });
+    inspectorBody.querySelector('[data-act="reaction"]')?.addEventListener("click", () => {
+      const starts = itemStartTimes(p);
+      let idx = p.tracks.main.findIndex((m, i) => o.start >= starts[i] && o.start < starts[i] + m.duration);
+      if (idx === -1) idx = p.tracks.main.length - 1;
+      if (idx < 0) return;
+      o.lockToId = p.tracks.main[idx].id;
+      o.lockOffset = +(o.start - starts[idx]).toFixed(2);
+      o.reactionPair = true;
+      refresh();
+    });
+    inspectorBody.querySelector('[data-act="unlock"]')?.addEventListener("click", () => {
+      delete o.lockToId;
+      delete o.lockOffset;
+      delete o.reactionPair;
+      refresh();
+    });
     inspectorBody.querySelector("#f-corner").addEventListener("change", (e) => {
       o.corner = e.target.value;
       refresh();
@@ -391,6 +428,39 @@ $("btn-import").addEventListener("click", async () => {
 $("file-import").addEventListener("change", async (e) => {
   if (e.target.files.length) await timeline.addFiles(e.target.files, "main");
   e.target.value = "";
+});
+
+$("btn-reaction").addEventListener("click", () => {
+  // One-click reaction setup (Paul, Nov 4 2026): the video being reacted
+  // to plays on the main track; your camera rides in a corner window on
+  // layer 1, LOCKED to the first main clip so the pair stays in sync.
+  if (!project.tracks.main.length) {
+    project.tracks.main.push({
+      ...newMainItem({ label: "Video you're reacting to", kind: "clip", duration: 30 }),
+      hue: 210,
+    });
+  }
+  let cam = (project.tracks.layers[0] || []).find((o) => o.lockToId);
+  if (!cam) {
+    const first = project.tracks.main[0];
+    cam = {
+      ...newOverlayItem({
+        label: "You — your camera",
+        start: 0,
+        duration: Math.min(first.duration, 30),
+      }),
+      hue: 280,
+      lockToId: first.id,
+      lockOffset: 0,
+      reactionPair: true,
+    };
+    (project.tracks.layers[0] ||= []).push(cam);
+  }
+  selection = { lane: "layer:0", id: cam.id };
+  timeline.selection = selection;
+  refresh();
+  document.getElementById("timeline")
+    .scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
 $("btn-caption").addEventListener("click", () => {
