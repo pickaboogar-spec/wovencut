@@ -331,6 +331,25 @@ FOLLOWS something in the frame.
   headless-Chromium interaction tests + screenshots. NOT yet run: the
   .exe build (awaits the first GitHub Actions run on Paul's future
   repo) and Paul's hands-on review — same gate as Phase 1.
+- **2026-11-05 — Pro pass 2 legal audit + capability matrix (same
+  session, Paul's added direction).** Audited Terms v2 end-to-end and
+  found the acceptance gate and About/Donate were design-only — Paul's
+  Nov 4 hard requirement had never been coded. Built both to the
+  existing spec (no redesign): 11-screen scrollwrap gate with §15
+  alone on Screen 10, acceptance record (version + text fingerprint +
+  timestamp + per-screen set, local only), re-run on version or text
+  change, Decline closing the app via the main process, reading-copy
+  view mode; About at the right of the menu bar with the quiet Donate
+  section; Beta added to window/document titles; `assets/**` added to
+  the packaged files (the donate QR was excluded); NSIS license page
+  generated from the operative text. Two documentation corrections
+  inside the Terms draft, both tagged for Paul's approval; NO
+  operative wording changed. Deliverables:
+  `docs/LEGAL-FRAMEWORK-CHECKLIST-2026-11-05.md` (preparation, not
+  legal advice — [CONTACT] is the one hard release blocker) and
+  `docs/CAPABILITY-MATRIX-2026-11-05.md`. Verified: node suites green;
+  headless-Chromium wheel-walk of all 11 screens + record/reload/
+  tamper/decline/view-mode/About checks, zero page errors.
 - **2026-11-05 — Pro pass 2 delivered for review (Paul's ~2.5-hour
   gauge session).** Built, in work-list order: (1) auto-save with crash
   recovery + snapshots/version history; (2) SRT caption import AND

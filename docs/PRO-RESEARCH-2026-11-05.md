@@ -161,3 +161,23 @@ Q/W**, and **per-lane Hide/Mute** from the "Still missing" list.
    preview + eq/curves in render; cheap once render compositing lands.
 7. **Speed controls** — setpts/atempo in render; preview approximation.
 8. Lock lane toggle (hide/mute landed; lock is the third header state).
+
+---
+
+# Addendum 2 — pro pass 2 legal audit + capability matrix (2026-11-05)
+
+Two corrections and two new documents from the audit workstream Paul
+added to this session:
+
+- **Correction:** the morning section of this doc listed "the terms
+  gate" among WovenCut's existing features. That was wrong — the gate
+  existed only as a design spec in `TERMS-OF-USE-DRAFT.md`; no code
+  implemented it. The audit session built it to that spec (plus
+  About/Donate, also previously design-only), verified all eleven
+  screens in the real UI, and recorded the details in
+  `docs/LEGAL-FRAMEWORK-CHECKLIST-2026-11-05.md`.
+- **Capability matrix:** the feature-by-feature comparison this doc's
+  research supports now lives as its own maintained document,
+  `docs/CAPABILITY-MATRIX-2026-11-05.md` (WovenCut status column:
+  working / plan-only / not yet — including this session's builds:
+  Phase 4 rendering ✅, lane hide/mute ✅, terms gate ✅).
