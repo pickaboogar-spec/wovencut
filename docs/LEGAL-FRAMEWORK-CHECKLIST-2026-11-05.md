@@ -176,3 +176,6 @@ free product is on the attorney agenda (Section E).
   path and the NSIS license page are code/config-reviewed only — like
   everything packaged, they get their first real run at the first
   Windows build (the standing Phase 1 gate).
+
+---
+**UPDATE 2026-11-05:** Item B.1 is RESOLVED. The mailbox wc-support@damonini.com was created on Hostinger at Paul's direction on 2026-11-05 and the address now fills §15.1, §15.7, §17.6 (and Annex A's variant) in the operative text, js/terms.js, and build/license.txt; the node test suite now asserts the address is present and no [CONTACT] placeholder remains, and passes. Standing chore unchanged: the mailbox must be monitored and opt-out notices honored and kept.

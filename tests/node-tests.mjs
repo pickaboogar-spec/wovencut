@@ -291,10 +291,12 @@ import {
   assert.ok(s10.body.includes("15.7") && s10.body.includes("opt out"));
   assert.ok(s10.body.includes("permission to use the distributed WovenCut application ends"));
   assert.ok(!s10.body.includes("Governing law"), "§16 must not share the arbitration screen");
-  // Screen 11 carries §16 + §17; every [CONTACT] placeholder is still a
-  // placeholder in the draft (release blocker, tracked in the checklist).
+  // Screen 11 carries §16 + §17. The [CONTACT] placeholder was filled
+  // 2026-11-05 with wc-support@damonini.com (mailbox created on Hostinger
+  // at Paul's direction); no placeholder may remain in the operative text.
   assert.ok(TERMS_SCREENS[10].body.includes("Governing law"));
-  assert.ok(TERMS_SCREENS.map((s) => s.body).join("").includes("[CONTACT]"));
+  assert.ok(TERMS_SCREENS.map((s) => s.body).join("").includes("wc-support@damonini.com"));
+  assert.ok(!TERMS_SCREENS.map((s) => s.body).join("").includes("[CONTACT]"));
   // Fingerprint: stable, and any wording change re-triggers the gate.
   assert.equal(fingerprintText("abc"), fingerprintText("abc"));
   assert.notEqual(fingerprintText("abc"), fingerprintText("abd"));
