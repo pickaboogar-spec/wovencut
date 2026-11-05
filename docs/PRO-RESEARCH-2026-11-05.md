@@ -122,3 +122,42 @@ Against the pro pattern it was missing, in rough priority order:
 - Real-media preview (actual video frames, thumbnails, music playback)
   is still Phases 2–3 scope; this batch's waveforms are audio-true but
   the picture remains labelled placeholder frames.
+
+---
+
+# Addendum — pro pass 2 (later the same day, 2026-11-05)
+
+Paul authorized a ~2.5-hour follow-on session against this document's
+rankings. Everything in the "Build next (ranked)" list above is now
+BUILT and verified:
+
+1. ✅ Auto-save + crash recovery + snapshots (12-deep version history).
+2. ✅ SRT import AND export (plus burn-in vs sidecar choice at export).
+3. ✅ Loudness toggle (−14 LUFS) — plan AND real render (loudnorm).
+4. ✅ Music auto-ducking — model from real decoded peaks, dip curve on
+   the timeline, sidechain compression in the render.
+5. ✅ Transitions menu — cut, crossfade, dip to black, dip to white,
+   wipe left, slide left; model + preview + planner + render.
+
+Plus three items pulled forward: **Phase 4 real rendering itself**
+(the render this list assumed was still stubbed — see WORKFLOW.md's
+Phase 4 status note for the measured verification), **ripple trim
+Q/W**, and **per-lane Hide/Mute** from the "Still missing" list.
+
+### Updated "still missing" ranking after pass 2
+
+1. **Real media decode in preview / Phase 3** — still the biggest
+   experiential gap: preview draws labelled placeholders. Everything
+   else now assumes it.
+2. **Render compositing for layers/background/green-screen** — the
+   model, preview, and planner all support them; render v1 warns and
+   skips. This is now the top render gap (overlay filter + chromakey).
+3. **Clip handles for transitions** — rendered length currently shrinks
+   by the transition durations; pros eat handles instead.
+4. **Audio keyframes / volume line** — ducking covers the common case;
+   a drawn volume line is the next audio step.
+5. **Live audio meter** — needs Phase 3's real audio path.
+6. **Colour basics** (brightness/contrast/saturation) — CSS-filter
+   preview + eq/curves in render; cheap once render compositing lands.
+7. **Speed controls** — setpts/atempo in render; preview approximation.
+8. Lock lane toggle (hide/mute landed; lock is the third header state).
