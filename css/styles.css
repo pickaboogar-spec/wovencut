@@ -1,0 +1,73 @@
+:root {
+  --ink: #1c1a17;
+  --paper: #f6f2ea;
+  --accent: #2f5d3a; /* deep forest green — a nod to Paul's brand palette */
+  --gold: #b8862f;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 1024px;
+  padding: 1.25rem;
+  font-family: system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+header h1 { margin: 0; font-size: 1.9rem; }
+.working-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  vertical-align: middle;
+}
+.tagline { margin: 0.35rem 0 1.25rem; color: #4b463e; }
+.stage canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #000;
+  border-radius: 10px;
+}
+.controls { display: flex; gap: 0.6rem; align-items: center; margin-top: 0.6rem; }
+.controls button {
+  font-size: 1rem;
+  padding: 0.55rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  min-height: 48px; /* big tap targets — Paul's tap-first standard */
+}
+.readout { font-variant-numeric: tabular-nums; color: #4b463e; }
+.open-note { color: var(--accent); font-weight: 600; }
+.timeline { display: flex; gap: 4px; align-items: stretch; margin: 0.5rem 0 1.5rem; }
+.tl-block {
+  background: #e5ddcb;
+  border: 1px solid #c9bfa5;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.tl-segue { background: #f3e2bd; border-color: var(--gold); }
+.tl-label { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-meta { font-size: 0.75rem; color: #5c5546; }
+.tl-scale { align-self: center; font-size: 0.8rem; color: #5c5546; white-space: nowrap; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.panel { background: #fff; border: 1px solid #ddd3bd; border-radius: 10px; padding: 0.9rem 1rem; }
+.panel h2 { margin-top: 0; font-size: 1.05rem; }
+.stub-note { color: #5c5546; font-size: 0.92rem; line-height: 1.45; }
+.chat-placeholder input {
+  width: 100%;
+  padding: 0.55rem;
+  border: 1px solid #c9bfa5;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+footer { margin-top: 2rem; color: #5c5546; font-size: 0.85rem; }

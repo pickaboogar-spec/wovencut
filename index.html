@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WovenCut (working title) — a truly free video editor</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header>
+  <h1>WovenCut <span class="working-title">working title</span></h1>
+  <p class="tagline">A truly free video editor for budget creators.
+     No upsells. Bring your own Muse, bring your own Replicate.</p>
+</header>
+
+<main>
+  <section class="stage">
+    <canvas id="preview" width="960" height="540"></canvas>
+    <div class="controls">
+      <button id="btn-play" type="button">▶ Play</button>
+      <button id="btn-restart" type="button">⟲ Restart</button>
+      <span id="readout" class="readout">0.0s / 0s</span>
+    </div>
+    <p id="open-note" class="open-note"></p>
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    <div id="timeline" class="timeline"></div>
+  </section>
+
+  <section class="panels">
+    <div class="panel">
+      <h2>Captions</h2>
+      <div id="panel-captions"></div>
+    </div>
+    <div class="panel">
+      <h2>Music</h2>
+      <div id="panel-music"></div>
+    </div>
+    <div class="panel">
+      <h2>Export</h2>
+      <div id="panel-export"></div>
+    </div>
+    <div class="panel">
+      <h2>AI Segues — Replicate</h2>
+      <div id="panel-replicate"></div>
+    </div>
+    <div class="panel">
+      <h2>Co-editor — Muse</h2>
+      <div id="panel-Muse"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Phase 0 skeleton. Free forever — see README.md and WORKFLOW.md.</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
