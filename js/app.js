@@ -607,7 +607,7 @@ $("btn-music").addEventListener("click", async () => {
   if (desktop) {
     const p = await desktop.openAudioDialog();
     if (p) {
-      project.music = { src: p, volume: project.music?.volume ?? 0.8 };
+      project.music = { ...(project.music || {}), src: p, volume: project.music?.volume ?? 0.8 };
       refresh();
     }
   } else {
@@ -617,7 +617,7 @@ $("btn-music").addEventListener("click", async () => {
 $("file-music").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (file) {
-    project.music = { src: file.name, volume: project.music?.volume ?? 0.8 };
+    project.music = { ...(project.music || {}), src: file.name, volume: project.music?.volume ?? 0.8 };
     refresh();
   }
   e.target.value = "";

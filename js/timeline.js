@@ -85,7 +85,7 @@ export function removeItem(project, lane, id) {
   } else if (lane === "marker") {
     project.markers = (project.markers || []).filter((m) => m.id !== id);
   } else if (lane === "music") {
-    project.music = { src: null, volume: project.music?.volume ?? 0.8 };
+    project.music = { ...(project.music || {}), src: null, peaks: undefined, volume: project.music?.volume ?? 0.8 };
   }
 }
 
@@ -248,7 +248,7 @@ export class TimelineEditor {
       const path = this.hooks.desktop?.getPathForFile(file) || file.name;
       const kind = kindFromPath(file.name);
       if (kind === "audio") {
-        project.music = { src: path, volume: project.music?.volume ?? 0.8 };
+        project.music = { ...(project.music || {}), src: path, volume: project.music?.volume ?? 0.8 };
         // Real waveform for the music bed, decoded locally (async — the
         // block redraws with its wave when the peaks land).
         peaksFromFile(file).then((peaks) => {
@@ -299,7 +299,7 @@ export class TimelineEditor {
     for (const p of paths) {
       const kind = kindFromPath(p);
       if (kind === "audio") {
-        project.music = { src: p, volume: project.music?.volume ?? 0.8 };
+        project.music = { ...(project.music || {}), src: p, volume: project.music?.volume ?? 0.8 };
         this.peaksForPath(p, (peaks) => {
           if (project.music?.src === p) project.music.peaks = peaks;
         });

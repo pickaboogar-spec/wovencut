@@ -69,6 +69,27 @@ export const RULES = {
   DEFAULT_STILL_DURATION_S: 5,
 };
 
+// Transitions between main-track clips (pro pass 2, Nov 5 2026). The
+// chosen transition lives on the INCOMING clip (transitionIn +
+// transitionDuration), the way it always has. `xfade` is the FFmpeg
+// xfade transition name the Phase 4 render uses; the preview draws an
+// approximation of each (see preview.js). DIP transitions pass through
+// black/white BETWEEN two clips — they are never applied at the very
+// start of a project, so Paul's first-frame rule is untouched: clip 1
+// still opens at full strength from t=0.
+export const TRANSITIONS = [
+  { id: "cut", icon: "✂️", label: "Cut — instant switch", xfade: null },
+  { id: "crossfade", icon: "⤨", label: "Crossfade — soft blend", xfade: "fade" },
+  { id: "dipblack", icon: "🌑", label: "Dip to black — fade out, fade in", xfade: "fadeblack" },
+  { id: "dipwhite", icon: "🌕", label: "Dip to white — flash through white", xfade: "fadewhite" },
+  { id: "wipeleft", icon: "◀️", label: "Wipe left — new clip wipes in from the right", xfade: "wipeleft" },
+  { id: "slideleft", icon: "⏩", label: "Slide left — new clip slides in, pushing the old one out", xfade: "slideleft" },
+];
+
+export function transitionById(id) {
+  return TRANSITIONS.find((t) => t.id === id) || TRANSITIONS[0];
+}
+
 let uidCounter = 0;
 export function uid(prefix = "c") {
   uidCounter += 1;
@@ -161,9 +182,23 @@ export function emptyProject(title = "Untitled video") {
     // for chapters, beats, and "fix this later" notes.
     markers: [],
     exportPreset: "youtube-1080",
+    // Loudness normalisation (pro pass 2): when ON, the export plan adds
+    // FFmpeg loudnorm targeting −14 LUFS / −1 dBTP — the level YouTube
+    // and TikTok normalise to, so the upload sounds as loud as intended
+    // instead of being turned down (or left quiet). Applied to the final
+    // audio mix at render time (Phase 4); the toggle shapes the plan now.
+    loudnessNormalize: true,
+    // Captions at export: "burn" bakes them into the picture (what the
+    // preview shows); "srt" keeps the picture clean and ships a separate
+    // .srt file to upload alongside (YouTube captions). 
+    captionMode: "burn",
     tracks: { main: [], layers: [[]], background: [] },
     captions: [],
-    music: { src: null, volume: 0.8 },
+    // Music bed: file reference + volume. Ducking (pro pass 2): when
+    // duck is ON, the music dips under the main track's sound by
+    // duckAmount (0–1, the fraction of volume removed while the main
+    // track is loud). Modelled from the clips' real decoded waveforms.
+    music: { src: null, volume: 0.8, duck: false, duckAmount: 0.6 },
     // Credit for the original creator (reaction videos, Paul Nov 4 2026):
     // filled in the Reaction panel, written into the YouTube description
     // automatically at export — crediting the original is not optional
@@ -295,6 +330,15 @@ export function overlaysAt(project, t) {
 // Lift older projects into the v3 layered shape, so old files never crash
 // the app: v1 (Phase 0 stills) → v3; v2 (single overlay lane) → the
 // overlay lane becomes layer 1, with an empty background lane.
+// Pro pass 2 defaults, filled in for any older file that predates them.
+function fillPass2Defaults(project) {
+  if (project.loudnessNormalize === undefined) project.loudnessNormalize = true;
+  if (!project.captionMode) project.captionMode = "burn";
+  project.music = { duck: false, duckAmount: 0.6, ...(project.music || { src: null, volume: 0.8 }) };
+  if (project.music.volume === undefined) project.music.volume = 0.8;
+  return project;
+}
+
 export function migrateProject(project) {
   if (!project) return project;
   if (project.version >= 3) {
@@ -304,7 +348,7 @@ export function migrateProject(project) {
     project.settings = { width: 1920, height: 1080, fps: 30, ...(project.settings || {}) };
     project.markers = project.markers || [];
     project.exportPreset = project.exportPreset || "youtube-1080";
-    return project;
+    return fillPass2Defaults(project);
   }
   if (project.version === 2) {
     project.tracks.layers = [project.tracks.overlay || []];
@@ -315,7 +359,7 @@ export function migrateProject(project) {
     project.markers = project.markers || [];
     project.exportPreset = project.exportPreset || "youtube-1080";
     project.version = 3;
-    return project;
+    return fillPass2Defaults(project);
   }
   const main = (project.stills || []).map((s) => ({
     ...newMainItem({ label: s.label, kind: s.kind === "segue" ? "segue" : "still", duration: s.duration }),
@@ -325,7 +369,7 @@ export function migrateProject(project) {
     generated: s.generated,
     provider: s.provider,
   }));
-  return {
+  return fillPass2Defaults({
     version: 3,
     title: project.title || "Untitled video",
     settings: { width: 1920, height: 1080, fps: 30 },
@@ -335,7 +379,7 @@ export function migrateProject(project) {
     captions: (project.captions || []).map((c) => ({ id: uid("t"), ...c })),
     music: project.music || { src: null, volume: 0.8 },
     sourceCredit: { title: "", creator: "", url: "" },
-  };
+  });
 }
 
 // --- Timecode ----------------------------------------------------------------
