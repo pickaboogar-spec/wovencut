@@ -115,11 +115,18 @@ export function importSrtInto(project, text) {
   return caps.length;
 }
 
+// Import/export result message. The panel re-mounts on every app
+// refresh, which would wipe a message written straight into the DOM —
+// so the message is kept here and each mount renders it once.
+let flashStatus = "";
+
 // Panel: summary, SRT import/export, and how editing works.
 // hooks: { onChange(), saveTextFile(name, text) } — saveTextFile comes
 // from the desktop shell when present; the browser fallback downloads.
 export function mountCaptionsEditor(project, container, hooks = {}) {
   const n = project.captions.filter((c) => c.text).length;
+  const flash = flashStatus;
+  flashStatus = "";
   container.innerHTML =
     `<p class="stub-note">${n} caption${n === 1 ? "" : "s"} in this project. ` +
     `Add one with the 💬 Add Caption button (it lands at the playhead), ` +
@@ -132,10 +139,11 @@ export function mountCaptionsEditor(project, container, hooks = {}) {
         title="Save this project's captions as a subtitle file (.srt) — upload it next to your video on YouTube or TikTok, or keep it as a backup of your caption wording">💾 Export Captions (.srt)</button>
     </div>
     <input type="file" data-srt-file hidden accept=".srt,text/plain">
-    <p class="stub-note" data-srt-status hidden></p>`;
+    <p class="stub-note" data-srt-status ${flash ? "" : "hidden"}>${flash}</p>`;
 
   const status = container.querySelector("[data-srt-status]");
   const say = (msg) => {
+    flashStatus = msg; // survives the refresh remount this may trigger
     status.hidden = false;
     status.textContent = msg;
   };
