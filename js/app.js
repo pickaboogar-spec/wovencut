@@ -8,7 +8,7 @@
 // No network calls, no telemetry, no accounts. Files stay on this machine.
 
 import {
-  RULES, baseName, formatTimecode, itemStartTimes, migrateProject, newMainItem,
+  RULES, TRANSITIONS, baseName, formatTimecode, itemStartTimes, migrateProject, newMainItem,
   newOverlayItem, projectDuration, sampleProject, emptyProject,
   syncLockedItems, uid,
 } from "./model.js";
@@ -192,15 +192,14 @@ function renderInspector() {
         title: "Fade this clip in from black over this many seconds. 0 = appears at full strength instantly. The FIRST clip of a new project is 0 by default — Paul's rule: his videos open at full strength, never on a fade from black. Raise it only if you want the fade.", value: it.fadeIn })}
       ${numField({ id: "f-fadeout", icon: "🌇", label: "Fade out (seconds)",
         title: "Fade this clip out to black over this many seconds at its end. 0 = hard cut away.", value: it.fadeOut })}
-      <label class="insp-field" title="How this clip arrives FROM the previous clip. Crossfade blends the two together for a soft join; Cut is an instant switch.">
+      <label class="insp-field" title="How this clip arrives FROM the previous clip. Cut is an instant switch; Crossfade blends the two together; the Dips pass through black or white between the clips; Wipe and Slide push the new clip across the old one. The length below sets how long the join takes. (Transitions never apply to the very first clip — a video always opens on its first frame at full strength.)">
         <span class="insp-label">⤨ Transition in</span>
         <select id="f-transition">
-          <option value="cut" ${it.transitionIn === "cut" ? "selected" : ""}>Cut — instant switch</option>
-          <option value="crossfade" ${it.transitionIn === "crossfade" ? "selected" : ""}>Crossfade — soft blend</option>
+          ${TRANSITIONS.map((t) => `<option value="${t.id}" ${it.transitionIn === t.id ? "selected" : ""}>${t.icon} ${t.label}</option>`).join("")}
         </select>
       </label>
-      ${numField({ id: "f-transdur", icon: "⤨", label: "Crossfade length (seconds)",
-        title: "How long the crossfade blend lasts (only used when Transition in = Crossfade)", value: it.transitionDuration })}
+      ${numField({ id: "f-transdur", icon: "⤨", label: "Transition length (seconds)",
+        title: "How long the join lasts (only used when Transition in is not Cut)", value: it.transitionDuration })}
       <label class="insp-field" title="Tick this when this clip was filmed in front of a green screen: the green is knocked out and the Background lane shows through behind the person. Layer lanes still draw on top.">
         <span class="insp-label">🟩 Green screen</span>
         <span><input type="checkbox" id="f-keygreen" ${it.keyGreen ? "checked" : ""}> This clip is green screen — show the background behind it</span>

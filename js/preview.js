@@ -142,11 +142,27 @@ export class Preview {
 
     const item = project.tracks.main[idx];
     const intoItem = tc - starts[idx];
+    const next = project.tracks.main[idx + 1];
+    const remain = item.duration - intoItem;
+    // Transition window at the END of the current clip, driven by the
+    // NEXT clip's transitionIn (pro pass 2: crossfade, dips, wipe, slide
+    // — the preview approximates each; the render uses FFmpeg xfade).
+    const tDur = next ? (next.transitionDuration || 0.5) : 0;
+    const inTrans = Boolean(next && tDur > 0 && remain < tDur && remain >= 0);
+    const tProg = inTrans ? 1 - remain / tDur : 0; // 0 → 1 across the window
+    const sliding = inTrans && next.transitionIn === "slideleft";
+
     // Green-screen clips are drawn translucent in the placeholder preview
     // so the background lane visibly shows through — a stand-in for the
     // real chroma key the Phase 4 export does with FFmpeg's chromakey.
     const mainAlpha = this.fadeAlpha(item, intoItem) * (item.keyGreen && bg ? 0.62 : 1);
-    this.drawFrame(item, mainAlpha, 0, 0, canvas.width, canvas.height);
+    if (sliding) {
+      // Slide left: the old clip slides out left as the new one pushes in.
+      this.drawFrame(item, mainAlpha, -tProg * canvas.width, 0, canvas.width, canvas.height);
+      this.drawFrame(next, 1, (1 - tProg) * canvas.width, 0, canvas.width, canvas.height);
+    } else {
+      this.drawFrame(item, mainAlpha, 0, 0, canvas.width, canvas.height);
+    }
     if (item.keyGreen && bg) {
       ctx.save();
       ctx.font = "500 15px system-ui, sans-serif";
@@ -157,13 +173,37 @@ export class Preview {
       ctx.restore();
     }
 
-    // Crossfade across the boundary INTO the next segment.
-    const next = project.tracks.main[idx + 1];
-    if (next && next.transitionIn === "crossfade") {
-      const remain = item.duration - intoItem;
-      const d = next.transitionDuration || 0.5;
-      if (remain < d) {
-        this.drawFrame(next, 1 - remain / d, 0, 0, canvas.width, canvas.height);
+    if (inTrans && !sliding) {
+      if (next.transitionIn === "crossfade") {
+        this.drawFrame(next, tProg, 0, 0, canvas.width, canvas.height);
+      } else if (next.transitionIn === "wipeleft") {
+        // Wipe left: the new clip is revealed from the left edge across.
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, tProg * canvas.width, canvas.height);
+        ctx.clip();
+        this.drawFrame(next, 1, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      } else if (next.transitionIn === "dipblack" || next.transitionIn === "dipwhite") {
+        // Dip OUT: the picture sinks toward the dip colour at the join.
+        ctx.save();
+        ctx.globalAlpha = tProg;
+        ctx.fillStyle = next.transitionIn === "dipblack" ? "#000" : "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+    }
+    // Dip IN: the current clip rises out of the dip colour at its start.
+    // (Only ever BETWEEN clips — clip 1 has no transition in, and the app
+    // never adds one at the project start: Paul's first-frame rule.)
+    if (idx > 0 && (item.transitionIn === "dipblack" || item.transitionIn === "dipwhite")) {
+      const dIn = item.transitionDuration || 0.5;
+      if (intoItem < dIn) {
+        ctx.save();
+        ctx.globalAlpha = 1 - intoItem / dIn;
+        ctx.fillStyle = item.transitionIn === "dipblack" ? "#000" : "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
       }
     }
 

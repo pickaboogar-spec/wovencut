@@ -28,7 +28,7 @@
 
 import {
   baseName, formatClock, itemStartTimes, kindFromPath, newBackgroundItem,
-  newMainItem, newOverlayItem, projectDuration, syncLockedItems, uid,
+  newMainItem, newOverlayItem, projectDuration, syncLockedItems, transitionById, uid,
 } from "./model.js";
 import { peaksFromBytes, peaksFromFile, waveformSvg } from "./waveform.js";
 
@@ -366,7 +366,8 @@ export class TimelineEditor {
     // Main lane blocks
     const mainBlocks = project.tracks.main.map((item) => {
       const badges = [
-        item.transitionIn === "crossfade" ? `⤨ crossfade ${item.transitionDuration}s` : "",
+        item.transitionIn && item.transitionIn !== "cut"
+          ? `${transitionById(item.transitionIn).icon} ${item.transitionIn} ${item.transitionDuration}s` : "",
         item.fadeIn > 0 ? `fade-in ${item.fadeIn}s` : "",
         item.fadeOut > 0 ? `fade-out ${item.fadeOut}s` : "",
         item.generated ? "AI segue" : "",
