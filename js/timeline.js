@@ -86,6 +86,55 @@ export function probeDuration(file, kind, fallback) {
   });
 }
 
+// Media extensions accepted from an OS drop (mirrors model.js kindFromPath).
+// Anything else in a dropped folder (notes, documents, installers) is
+// quietly skipped — a folder drop should never become junk clips.
+const DROP_EXT = [
+  "mp4", "mov", "mkv", "webm", "avi", "m4v",
+  "png", "jpg", "jpeg", "gif", "webp", "bmp",
+  "mp3", "wav", "m4a", "ogg", "flac",
+];
+export function isSupportedDropFile(file) {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  return DROP_EXT.includes(ext);
+}
+
+// Expand an OS drop into a flat File list. Per Paul's direction (Nov 4
+// 2026): a user can open a folder on their drive and drag clips in — and
+// dragging the whole FOLDER in works too. Chromium/Electron expose dropped
+// folders as directory entries; walk them recursively and keep the media
+// files. Entries must be captured synchronously during the drop event, so
+// this is called before any await in the handler.
+export async function collectDroppedFiles(dataTransfer) {
+  const entries = [];
+  if (dataTransfer.items?.length) {
+    for (const item of dataTransfer.items) {
+      if (item.kind !== "file") continue;
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+    }
+  }
+  if (!entries.length) return [...(dataTransfer.files || [])];
+
+  const files = [];
+  const walk = async (entry) => {
+    if (entry.isFile) {
+      const file = await new Promise((res, rej) => entry.file(res, rej)).catch(() => null);
+      if (file) files.push(file);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      // readEntries returns in batches; loop until it returns an empty set.
+      for (;;) {
+        const batch = await new Promise((res, rej) => reader.readEntries(res, rej)).catch(() => []);
+        if (!batch.length) break;
+        for (const child of batch) await walk(child);
+      }
+    }
+  };
+  for (const entry of entries) await walk(entry);
+  return files;
+}
+
 export class TimelineEditor {
   // hooks: { project(), onChange(), onSelect(sel|null), onSeek(t), desktop }
   constructor(container, hooks) {
@@ -115,7 +164,7 @@ export class TimelineEditor {
 
   async addFiles(fileList, lane, atTime = null) {
     const project = this.project;
-    const files = [...fileList];
+    const files = [...fileList].filter(isSupportedDropFile);
     for (const file of files) {
       const path = this.hooks.desktop?.getPathForFile(file) || file.name;
       const kind = kindFromPath(file.name);
@@ -322,10 +371,12 @@ export class TimelineEditor {
       track.addEventListener("drop", async (e) => {
         e.preventDefault();
         track.classList.remove("dragover");
-        if (e.dataTransfer.files?.length) {
+        if (e.dataTransfer.files?.length || e.dataTransfer.items?.length) {
+          // Capture the drop (incl. any folders) before the first await.
+          const dropped = collectDroppedFiles(e.dataTransfer);
           const r = track.getBoundingClientRect();
           const atTime = (e.clientX - r.left) / PX_PER_SEC;
-          await this.addFiles(e.dataTransfer.files, lane, atTime);
+          await this.addFiles(await dropped, lane, atTime);
         } else if (this.drag?.lane === "main" && lane === "main") {
           this.moveMainToEnd(this.drag.id);
         }
