@@ -1,1 +1,51 @@
-{"author":"Paul Blanchard (Damonini)","build":{"appId":"com.damonini.wovencut","copyright":"Freeware — see README. Working title; final branding is Paul's.","directories":{"output":"dist"},"files":["electron/**","js/**","css/**","index.html","package.json"],"nsis":{"allowToChangeInstallationDirectory":true,"oneClick":false,"shortcutName":"WovenCut"},"productName":"WovenCut","win":{"target":["nsis","portable"]}},"description":"WovenCut (working title) — a truly free video editor for budget creators. Drag-and-drop timeline editing for long-form YouTube videos. No upsells, no telemetry, no accounts; users bring their own Muse and Replicate.","devDependencies":{"electron":"^33.2.0","electron-builder":"^25.1.8"},"main":"electron/main.js","name":"wovencut","private":true,"scripts":{"dist":"electron-builder --win","dist:portable":"electron-builder --win portable","pack":"electron-builder --dir","start":"electron ."},"type":"module","version":"0.2.0"}
+{
+  "author": "Paul Blanchard (Damonini)",
+  "build": {
+    "appId": "com.damonini.wovencut",
+    "copyright": "Freeware \u2014 see README. Working title; final branding is Paul's.",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "js/**",
+      "css/**",
+      "index.html",
+      "package.json"
+    ],
+    "nsis": {
+      "allowToChangeInstallationDirectory": true,
+      "oneClick": false,
+      "shortcutName": "WovenCut"
+    },
+    "productName": "WovenCut",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ]
+  },
+  "description": "WovenCut (working title) \u2014 a truly free video editor for budget creators. Drag-and-drop timeline editing for long-form YouTube videos. No upsells, no telemetry, no accounts; users bring their own Muse and Replicate.",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "main": "electron/main.js",
+  "name": "wovencut",
+  "private": true,
+  "scripts": {
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "pack": "electron-builder --dir",
+    "start": "electron ."
+  },
+  "type": "module",
+  "version": "0.2.0",
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0"
+  }
+}

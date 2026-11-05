@@ -13,13 +13,20 @@
 // calls, no accounts, no analytics. Nothing in this process phones home.
 
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell } from "electron";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// The renderer's export-plan module is pure ESM — reuse it here so the
-// plan the UI shows is the plan the export stub reports.
+// The renderer's export modules are pure ESM — reuse them here so the
+// plan the UI shows is the plan the export runs, and the render graph
+// the tests verified is the graph the app spawns.
 import { buildFfmpegArgs, planExport } from "../js/export.js";
+import { buildRenderArgs } from "../js/render.js";
+import { captionsToSrt } from "../js/captions.js";
+
+let mainWindow = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(__dirname, "..");
@@ -54,6 +61,7 @@ function createWindow() {
     return { action: "deny" };
   });
   win.loadURL("app://editor/index.html");
+  mainWindow = win;
   return win;
 }
 
@@ -168,30 +176,145 @@ function registerIpc() {
     return res.canceled ? null : res.filePath;
   });
 
-  // --- Export pipeline (STUB — Phase 4 makes it real) -----------------------
-  // The real renderer will spawn FFmpeg here. Where the binary comes from:
-  //   Option A (planned): the `ffmpeg-static` npm package ships a per-OS
-  //     ffmpeg binary as a dependency; electron-builder unpacks it from the
-  //     asar (asarUnpack) and this handler spawns it with the args built by
-  //     js/export.js → buildFfmpegArgs(). No download at runtime, works
-  //     offline, binary is free (LGPL/GPL build — license choice lands with
-  //     Paul's repo-license decision).
-  //   Option B: detect a system ffmpeg on PATH and use it if present.
-  // This stub deliberately does NEITHER yet: it returns the full plan + the
-  // exact ffmpeg argument list it WOULD run, so Paul's review gate can
-  // judge the pipeline before any binary is bundled.
+  // --- Export pipeline (REAL — Phase 4, pro pass 2, Nov 5 2026) -------------
+  // Spawns FFmpeg with the graph from js/render.js → buildRenderArgs() —
+  // the same builder the repo's render test verifies end-to-end. Binary
+  // resolution, in order:
+  //   1. The bundled ffmpeg-static binary (electron-builder unpacks it
+  //      from the asar via asarUnpack; the path is rewritten to the
+  //      unpacked location). No download at runtime, works offline.
+  //   2. A system ffmpeg on PATH.
+  // If neither exists, the export says so plainly instead of pretending.
+  // Progress (from FFmpeg's stderr time= lines) is forwarded to the
+  // window on "export:progress"; "export:cancel" kills the render.
+  let ffmpegBinCache = null;
+  async function resolveFfmpeg() {
+    if (ffmpegBinCache) return ffmpegBinCache;
+    try {
+      const mod = await import("ffmpeg-static");
+      let p = mod.default || mod;
+      if (typeof p === "string" && p) {
+        p = p.replace("app.asar", "app.asar.unpacked");
+        if (fs.existsSync(p)) return (ffmpegBinCache = p);
+      }
+    } catch { /* not installed — fall through to system ffmpeg */ }
+    const probe = spawn("ffmpeg", ["-version"], { shell: process.platform === "win32" });
+    const ok = await new Promise((res) => {
+      probe.on("error", () => res(false));
+      probe.on("close", (code) => res(code === 0));
+    });
+    return (ffmpegBinCache = ok ? "ffmpeg" : null);
+  }
+
+  // Which main-track items carry an audio stream? Probed with the
+  // bundled ffmpeg itself (`ffmpeg -i` prints the stream list — no
+  // separate ffprobe to bundle). Stills never have one.
+  const audioProbeCache = new Map();
+  async function probeHasAudio(bin, item) {
+    if (item.kind === "still" || !item.src) return false;
+    if (audioProbeCache.has(item.src)) return audioProbeCache.get(item.src);
+    const has = await new Promise((res) => {
+      const ch = spawn(bin, ["-hide_banner", "-i", item.src], { shell: process.platform === "win32" });
+      let err = "";
+      ch.stderr.on("data", (d) => { err += d; });
+      ch.on("error", () => res(false));
+      ch.on("close", () => res(/Stream .* Audio:/.test(err)));
+    });
+    audioProbeCache.set(item.src, has);
+    return has;
+  }
+
+  let currentRender = null;
+  ipcMain.handle("export:cancel", async () => {
+    if (currentRender) {
+      currentRender.__cancelled = true;
+      currentRender.kill();
+      return true;
+    }
+    return false;
+  });
+
   ipcMain.handle("export:run", async (_event, project, outputPath) => {
+    const out = outputPath || "wovencut-export.mp4";
+    const plan = planExport(project);
+    const bin = await resolveFfmpeg();
+    if (!bin) {
+      return {
+        ok: false, outputPath: out, plan,
+        ffmpegArgs: buildFfmpegArgs(project, out),
+        message:
+          "No FFmpeg found: the bundled binary is missing and no system " +
+          "ffmpeg is on the PATH, so nothing was rendered. The plan above " +
+          "is what the render will run once FFmpeg is available.",
+      };
+    }
+    // Captions burn-in needs a real .srt file for the subtitles filter —
+    // write the project's own captions to a temp file (removed after).
+    let srtPath = null;
+    if (project.captionMode !== "srt" && project.captions?.some((c) => c.text)) {
+      srtPath = path.join(os.tmpdir(), `wovencut-captions-${Date.now()}.srt`);
+      await fs.promises.writeFile(srtPath, captionsToSrt(project), "utf8");
+    }
+    let built;
+    try {
+      const hasAudio = [];
+      for (const item of project.tracks.main) {
+        hasAudio.push(await probeHasAudio(bin, item));
+      }
+      built = buildRenderArgs(project, out, { hasAudio, srtPath });
+    } catch (err) {
+      if (srtPath) await fs.promises.unlink(srtPath).catch(() => {});
+      return {
+        ok: false, outputPath: out, plan,
+        ffmpegArgs: buildFfmpegArgs(project, out),
+        message: `Export didn't start: ${err.message}`,
+      };
+    }
+    const result = await new Promise((resolve) => {
+      const child = spawn(bin, built.args, { shell: process.platform === "win32" });
+      currentRender = child;
+      let stderr = "";
+      child.stderr.on("data", (d) => {
+        stderr += d;
+        if (stderr.length > 200000) stderr = stderr.slice(-200000);
+        const m = /time=(\d+):(\d+):([\d.]+)/.exec(String(d));
+        if (m && built.durationOut > 0) {
+          const t = +m[1] * 3600 + +m[2] * 60 + +m[3];
+          mainWindow?.webContents.send("export:progress", {
+            t: +t.toFixed(2), durationOut: built.durationOut,
+          });
+        }
+      });
+      child.on("error", (err) => resolve({ ok: false, error: String(err) }));
+      child.on("close", (code) => {
+        if (currentRender === child) currentRender = null;
+        if (child.__cancelled) return resolve({ ok: false, cancelled: true });
+        resolve(code === 0
+          ? { ok: true }
+          : { ok: false, error: stderr.slice(-1200) });
+      });
+    });
+    if (srtPath) await fs.promises.unlink(srtPath).catch(() => {});
+    if (!result.ok) {
+      return {
+        ok: false, cancelled: Boolean(result.cancelled), outputPath: out, plan,
+        ffmpegArgs: [bin, ...built.args],
+        message: result.cancelled
+          ? "⏹️ Export cancelled — the unfinished file was not kept as a finished export."
+          : `Export didn't finish — FFmpeg said:\n${result.error || "unknown error"}`,
+      };
+    }
+    const timelineLen = project.tracks.main.reduce((s, i) => s + i.duration, 0);
     return {
-      ok: false,
-      stub: true,
-      outputPath: outputPath || null,
-      plan: planExport(project),
-      ffmpegArgs: buildFfmpegArgs(project, outputPath || "wovencut-export.mp4"),
+      ok: true, outputPath: out, plan,
+      ffmpegArgs: [bin, ...built.args],
       message:
-        "Export is a stub in this build: FFmpeg is not bundled yet " +
-        "(planned: ffmpeg-static, Phase 4). Nothing was rendered or " +
-        "written. The ffmpeg command above is the real plan — review it " +
-        "at the Phase 1 gate.",
+        `✅ Export finished — saved to ${out}. Rendered length ` +
+        `${built.durationOut}s (timeline ${timelineLen}s; transitions overlap, ` +
+        `so the render is a little shorter than the timeline).` +
+        (built.warnings.length
+          ? `\n\n⚠️ Honest notes:\n- ${built.warnings.join("\n- ")}`
+          : ""),
     };
   });
 }

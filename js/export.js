@@ -57,7 +57,7 @@ export function planExport(project) {
   const layerCount = (project.tracks.layers || []).reduce((s, l) => s + l.length, 0);
   const spec = getExportSpec(project);
   return {
-    engine: "FFmpeg (desktop) — binary bundled in Phase 4 via ffmpeg-static; stub in Phase 1",
+    engine: "FFmpeg (desktop) — bundled via ffmpeg-static, with a system FFmpeg fallback (Phase 4, real rendering)",
     preset: spec.preset.label,
     output: `MP4 — H.264 + AAC, ${spec.width}×${spec.height} at ${spec.fps} fps, rendered locally. Nothing is uploaded, ever.`,
     clips: project.tracks.main.length,
@@ -405,9 +405,12 @@ export function mountExportPanel(project, container, hooks = {}) {
     `Clips: ${plan.clips} · Layer items: ${plan.overlays} · Background items: ${plan.background} · ` +
     `Green-screen clips: ${plan.keyedClips} · ` +
     `Length: ${plan.durationSeconds}s · Music: ${plan.music} · Ducking: ${plan.ducking}</p>` +
-    `<button type="button" class="tool-btn" data-action="run-export"` +
-    ` title="Ask the desktop shell to run the export pipeline (stub in this phase — it returns the full FFmpeg plan and renders nothing)">` +
-    `📤 Run export (stub)</button>` +
+    `<button type="button" class="tool-btn primary" data-action="run-export"` +
+    ` title="Render the finished video as an MP4 with FFmpeg — on this computer, nothing is uploaded. In the desktop app a save box asks where to put the file first.">` +
+    `📤 Render the Video (MP4)</button>` +
+    ` <button type="button" class="tool-btn danger" data-action="cancel-export" hidden` +
+    ` title="Stop the render that's running. The unfinished file is not kept as a finished export.">⏹️ Cancel Rendering</button>` +
+    `<p class="stub-note" data-export-progress hidden></p>` +
     `<pre class="export-result" hidden></pre>` +
     ytSection(project);
   container.querySelector("#export-preset")?.addEventListener("change", (e) => {
@@ -423,19 +426,41 @@ export function mountExportPanel(project, container, hooks = {}) {
     hooks.onChange?.();
   });
   const btn = container.querySelector('[data-action="run-export"]');
+  const cancelBtn = container.querySelector('[data-action="cancel-export"]');
+  const progress = container.querySelector("[data-export-progress]");
   const out = container.querySelector(".export-result");
+  hooks.onProgress?.(({ t, durationOut }) => {
+    if (progress.hidden) return; // only while a render from this panel runs
+    const pct = durationOut > 0 ? Math.min(100, Math.round((t / durationOut) * 100)) : 0;
+    progress.textContent = `🎬 Rendering… ${t}s of ${durationOut}s (${pct}%)`;
+  });
+  cancelBtn?.addEventListener("click", async () => {
+    await hooks.cancelExport?.();
+  });
   btn.addEventListener("click", async () => {
     out.hidden = false;
-    out.textContent = "Asking the export pipeline…";
-    if (hooks.runExport) {
+    if (!hooks.runExport) {
+      out.textContent =
+        "No desktop shell detected (browser preview). Rendering lives in " +
+        "the Electron main process — run the desktop app to export.";
+      return;
+    }
+    btn.disabled = true;
+    if (hooks.cancelExport) cancelBtn.hidden = false;
+    progress.hidden = false;
+    progress.textContent = "🎬 Rendering… preparing the render graph.";
+    out.textContent = "Rendering with FFmpeg…";
+    try {
       const res = await hooks.runExport(project);
       out.textContent =
         (res.message || JSON.stringify(res, null, 2)) +
-        (res.ffmpegArgs ? `\n\nffmpeg ${res.ffmpegArgs.join(" ")}` : "");
-    } else {
-      out.textContent =
-        "No desktop shell detected (browser preview). The export stub " +
-        "lives in the Electron main process — run the desktop app.";
+        (res.ffmpegArgs ? `\n\nThe exact command that ran:\n${res.ffmpegArgs.join(" ")}` : "");
+      progress.textContent = res.ok
+        ? "✅ Render complete."
+        : "⏹️ Render did not complete — see the message below.";
+    } finally {
+      btn.disabled = false;
+      cancelBtn.hidden = true;
     }
   });
 

@@ -173,6 +173,8 @@ function mountPanels() {
           return desktop.runExport(p, out);
         }
       : null,
+    cancelExport: desktop ? () => desktop.cancelExport() : null,
+    onProgress: desktop ? (cb) => desktop.onExportProgress(cb) : null,
     saveTextFile: desktop
       ? (name, text) => desktop.saveTextFile(name, text)
       : null,

@@ -37,7 +37,14 @@ contextBridge.exposeInMainWorld("wovencut", {
   // audio waveform locally (see main.js "file:readBytes").
   readFileBytes: (filePath) => ipcRenderer.invoke("file:readBytes", filePath),
 
-  // Phase 1 stub in the main process — returns the plan, renders nothing.
+  // Phase 4 (pro pass 2): the main process really renders with FFmpeg.
   runExport: (project, outputPath) =>
     ipcRenderer.invoke("export:run", project, outputPath),
+  cancelExport: () => ipcRenderer.invoke("export:cancel"),
+  // Subscribe to render progress ({ t, durationOut }). Replaces any
+  // previous subscription — the export panel re-mounts on every refresh.
+  onExportProgress: (cb) => {
+    ipcRenderer.removeAllListeners("export:progress");
+    ipcRenderer.on("export:progress", (_event, data) => cb(data));
+  },
 });
