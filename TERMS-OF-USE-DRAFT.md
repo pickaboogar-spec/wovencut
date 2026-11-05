@@ -84,6 +84,8 @@ To the maximum extent permitted by law, you agree to indemnify, defend, and hold
 
 15.6 **Severability of this section.** If any part of this §15 is held unenforceable, the rest of §15 remains in effect, except that if the class-action waiver in §15.3 is held unenforceable as to a claim, that claim — and only that claim — will proceed in court under §16.
 
+15.7 **Opting out of arbitration — and what it means.** You may opt out of this §15 (arbitration and the waivers in §15.3) by sending written notice to [CONTACT] within 30 days of the date you first accepted the version of these Terms that contains this §15.7. Your notice must state your name and that you opt out of arbitration. **Read this part carefully before you decide: the license in §2.1 is granted only under these Terms as a whole, including this §15. If you opt out, your permission to use the distributed WovenCut application ends — the software will not run for you, and you must stop using it and delete your copies.** Opting out does not affect your rights, if any, in the source code under its open-source License (§2.2), and §§3–6 and 14 continue to apply to your past use. If you opt out and we later resolve a dispute with you, it will be resolved in court under §16. We state this consequence openly, here, before you accept — not in fine print — because the bargain is all-or-nothing: the software is free, and these Terms are its only price.
+
 ### 16. Governing law and venue
 These Terms are governed by the laws of the State of California, without regard to its conflict-of-law rules. For any dispute not subject to arbitration under §15, the state and federal courts located in San Diego County, California are the exclusive venue, and you consent to their personal jurisdiction.
 
@@ -127,17 +129,21 @@ Each screen ends with its own checkbox ("I have read and understand this section
 | 7 | Optional outside services (your own accounts) | §9 (Third-party services) | Checkbox 7 |
 | 8 | Rules of use; support; changes | §10 (Acceptable use; export); §11 (No support; changes to the software); §12 (Changes to these Terms); §13 (Termination) | Checkbox 8 |
 | 9 | If your use causes a claim against us | §14 (Indemnification) | Checkbox 9 |
-| 10 | **How disputes are resolved — arbitration (please read carefully)** | §15 (Dispute resolution) — **this section appears on this screen ALONE** | Checkbox 10 |
+| 10 | **How disputes are resolved — arbitration (please read carefully)** | §15 (Dispute resolution, incl. §15.7 opt-out AND its lock consequence, stated in the section text itself) — **this section appears on this screen ALONE** | Checkbox 10 |
 | 11 | Final agreement | Recap list of Screens 1–10 with their check states; §16 (Governing law and venue); §17 (General provisions); final checkbox: "I have read every section above, each of my checkboxes is checked, and I agree to these Terms" | "I Agree" (enabled only when all 11 checkboxes are checked) / "Decline" (always available, closes the app) |
 
 Notes on the map: §16–§17 sit on the final screen so the governing-law/venue terms are seen in the same view as the act of agreement itself. The arbitration screen's title is written to draw attention on purpose — conspicuousness of the arbitration section is a litigated factor (see Changelog).
 
 ---
 
-## Annex A — OPTIONAL clause: 30-day arbitration opt-out (Paul's decision — NOT in the main text)
-This annex is **not** part of the Terms above. It exists so Paul can decide with the research in front of him. If he adopts it, the variant paragraph is inserted into §15 as §15.7, and Screens 10–11 of the map are unchanged (the opt-out rides on the arbitration screen).
+## Annex A — The 30-day arbitration opt-out: Paul's decision (ADOPTED Nov 4, 2026, WITH his condition)
+Paul decided (voice call, Nov 4, 2026): **adopt the opt-out, but opting out ends the user's permission to use the software.** His reasoning, in his words: "if they're going to opt out, that means they're opening the door so that they can go to court over anything that happens. So if they want to be able to go to court, I want to be able to lock the software." The clause now lives in the main text as **§15.7**, drafted accordingly: the §2.1 license is granted only under the Terms as a whole, so opting out of §15 terminates the license to use the distributed application (stop using it; delete copies). Two limits were built into §15.7 to keep it defensible and honest: (a) it expressly preserves the user's rights in the source code under the open-source License (§2.2) — Paul is locking his distributed app and its terms, not purporting to revoke code rights a license already granted; and (b) the consequence is stated conspicuously inside §15 itself, which rides alone on Screen 10, so no user can claim surprise.
 
-**Variant paragraph (insert as §15.7 if adopted):**
+**Honest caveats recorded with his decision (for the attorney-review hour):**
+- The research below noted that in *Suarez v. Uber* the opt-out strengthened the clause partly because it was *penalty-free* (users kept the service). Conditioning the opt-out on losing a *paid* service would risk a court calling the opt-out illusory. Paul's structure is different — the software is free, nothing was paid, and the entire agreement is the condition of the gift — but a court has not tested this exact shape, and the Notes flag it for the attorney hour.
+- The "lock" is **legal, not technical**: with no accounts and no telemetry (Paul's design), the app cannot know a given user emailed an opt-out. §15.7 works as a termination of permission — continued use after opting out is unlicensed use — not as a remote kill switch. Building a technical lock would require check-ins Paul has ruled out.
+
+**Variant paragraph (the pre-decision draft, kept for the record — superseded by §15.7 as adopted):**
 "**15.7 Opt-out.** You may opt out of this §15 (arbitration and the waivers in §15.3) by sending written notice to [CONTACT] within 30 days of the date you first accepted the version of these Terms that contains this §15.7. Your notice must state your name, the email address or other identifier you wish us to record, and that you opt out of arbitration. Opting out does not affect any other part of these Terms, does not affect any earlier or later version's terms except as stated in that version, and will never result in any penalty or loss of the software. If you opt out, disputes will be resolved in court under §16."
 
 **What the research shows — pros:**
@@ -149,7 +155,7 @@ This annex is **not** part of the Terms above. It exists so Paul can decide with
 - It creates a small permanent chore: a working [CONTACT] address must exist, be monitored, and opt-out notices must be honored and kept. For a project with no accounts and no telemetry, that is new machinery — though a mailbox alone is enough.
 - It slightly weakens the "one uniform process for everyone" story: an opted-out user can sue in court, including potentially as a class plaintiff, because the class waiver falls with the arbitration section for that user only.
 
-**Recommendation recorded for Paul's decision (his call, not made here):** adopt it, in the conspicuous form above. The enforceability gain against the adhesion argument is worth more than the mailbox chore, and "you could have said no to arbitration, free, in one email, for 30 days" is exactly the kind of plain fairness that fits a free tool made for people with no leverage. If Paul prefers zero administrative machinery forever, the main text stands on its own without it — the gate design (own screen, scroll-and-check) already answers most of the "surprise" and "no notice" attacks that the opt-out would also help with.
+**Recommendation recorded before the decision:** adopt it, in conspicuous form. **Decision (Nov 4, 2026): adopted with Paul's lock condition** — see the head of this annex. The recommendation's enforceability analysis stands as research; Paul's all-or-nothing framing governs the shipped text.
 
 ---
 
