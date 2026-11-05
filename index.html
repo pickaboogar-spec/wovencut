@@ -77,6 +77,16 @@
   </nav>
 </header>
 
+<!-- Crash-recovery banner (pro pass 2): shown only when auto-save had
+     work in progress from a previous session. -->
+<div id="recovery-bar" class="recovery-bar" hidden>
+  <span id="recovery-text">🛟 Recovered your work in progress.</span>
+  <button type="button" class="tool-btn" id="btn-recovery-keep"
+    title="Keep the recovered work and carry on editing it">✅ Keep It</button>
+  <button type="button" class="tool-btn danger" id="btn-recovery-discard"
+    title="Throw the recovered work away and start with the sample project instead">🗑️ Discard — Start Fresh</button>
+</div>
+
 <main class="workspace">
   <section class="stage-col">
     <div class="stage">
@@ -108,6 +118,10 @@
   <div class="panel" id="panel-settings-wrap">
     <h2><span class="ico">⚙️</span> Project Settings</h2>
     <div id="panel-settings"></div>
+  </div>
+  <div class="panel" id="panel-autosave-wrap">
+    <h2><span class="ico">💾</span> Auto-save &amp; Snapshots</h2>
+    <div id="panel-autosave"></div>
   </div>
   <div class="panel" id="panel-shortcuts-wrap">
     <h2><span class="ico">⌨️</span> Keyboard Shortcuts</h2>

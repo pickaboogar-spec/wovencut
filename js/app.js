@@ -22,10 +22,22 @@ import { mountExportPanel } from "./export.js";
 import { mountReplicatePanel } from "./replicate.js";
 import { mountClaudePanel } from "./muse.js";
 import { mountReactionPanel } from "./reaction.js";
+import {
+  addSnapshot, clearAutosave, formatWhen, mountAutosavePanel, readAutosave,
+  safeStorage, writeAutosave,
+} from "./autosave.js";
 
 const desktop = window.wovencut?.isDesktop ? window.wovencut : null;
 
-let project = sampleProject();
+// Auto-save & crash recovery (pro pass 2): if the last session left work
+// in progress, we open WITH it and say so in the recovery banner — the
+// sample project only appears on a genuinely fresh start.
+const storage = safeStorage();
+const bootSave = readAutosave(storage);
+let project = bootSave ? migrateProject(bootSave.project) : sampleProject();
+let recoveredAt = bootSave ? bootSave.savedAt : null;
+let sessionDirty = Boolean(bootSave); // recovered work is worth re-saving
+let autosaveTimer = null;
 let selection = null; // { lane, id }
 
 // Undo/redo (pro-upgrade batch, Nov 5 2026): refresh() records every real
@@ -89,6 +101,12 @@ function fitCanvasToFrame() {
 
 function refresh() {
   history.noteChange(project); // undo history records real changes only
+  if (history.canUndo()) sessionDirty = true;
+  // Auto-save (pro pass 2): debounce so a burst of edits writes once.
+  if (sessionDirty && storage) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => writeAutosave(storage, project), 1200);
+  }
   syncLockedItems(project); // locked pairs follow their main clip
   fitCanvasToFrame();
   timeline.render();
@@ -125,6 +143,19 @@ function doRedo() {
 function mountPanels() {
   mountSettingsPanel(project, document.getElementById("panel-settings"), {
     onChange: refresh,
+  });
+  mountAutosavePanel(project, document.getElementById("panel-autosave"), {
+    storage,
+    onTouched: refresh,
+    onRestore: (restored) => {
+      project = migrateProject(restored);
+      selection = null;
+      timeline.selection = null;
+      sessionDirty = true;
+      history.reset(project);
+      preview.load(project);
+      refresh();
+    },
   });
   mountCaptionsEditor(project, document.getElementById("panel-captions"), {
     onChange: refresh,
@@ -524,10 +555,21 @@ $("btn-restart").addEventListener("click", () => {
   $("btn-play").innerHTML = "⏸️ Pause";
 });
 
+// Before the current project is replaced (New / Open), snapshot it —
+// replacing work is never a loss (pro pass 2).
+function snapshotBeforeReplace(label) {
+  if (storage && project.tracks.main.length) {
+    addSnapshot(storage, project, label);
+  }
+}
+
 $("btn-new").addEventListener("click", () => {
+  snapshotBeforeReplace("auto — before New Project");
   project = emptyProject();
   selection = null;
   timeline.selection = null;
+  sessionDirty = false;
+  clearAutosave(storage);
   history.reset(project); // a new project starts with a clean undo history
   preview.load(project);
   refresh();
@@ -537,6 +579,7 @@ $("btn-open").addEventListener("click", async () => {
   if (desktop) {
     const res = await desktop.openProjectDialog();
     if (!res) return;
+    snapshotBeforeReplace("auto — before opening another project");
     project = migrateProject(res.project);
   } else {
     $("file-open").click();
@@ -544,6 +587,7 @@ $("btn-open").addEventListener("click", async () => {
   }
   selection = null;
   timeline.selection = null;
+  sessionDirty = true;
   history.reset(project);
   preview.load(project);
   refresh();
@@ -551,9 +595,11 @@ $("btn-open").addEventListener("click", async () => {
 $("file-open").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  snapshotBeforeReplace("auto — before opening another project");
   project = migrateProject(JSON.parse(await file.text()));
   selection = null;
   timeline.selection = null;
+  sessionDirty = true;
   history.reset(project);
   preview.load(project);
   refresh();
@@ -814,6 +860,38 @@ document.addEventListener("keydown", (e) => {
 });
 
 refresh(); // first full render: panels, inspector, timecode, undo state
+
+// Crash-recovery banner: visible only when this session opened with
+// recovered work in progress. Keep = carry on; Discard = the sample
+// project instead (the recovered state stays reachable in Snapshots —
+// discarding snapshots it first, so even this is reversible).
+if (recoveredAt) {
+  const bar = document.getElementById("recovery-bar");
+  document.getElementById("recovery-text").textContent =
+    `🛟 Recovered your work in progress — auto-saved ${formatWhen(recoveredAt)}. ` +
+    `It's loaded and ready below.`;
+  bar.hidden = false;
+  document.getElementById("btn-recovery-keep").addEventListener("click", () => {
+    bar.hidden = true;
+  });
+  document.getElementById("btn-recovery-discard").addEventListener("click", () => {
+    addSnapshot(storage, project, "auto — recovered work, discarded at startup");
+    project = sampleProject();
+    selection = null;
+    timeline.selection = null;
+    sessionDirty = false;
+    clearAutosave(storage);
+    history.reset(project);
+    preview.load(project);
+    bar.hidden = true;
+    refresh();
+  });
+}
+
+// Flush the auto-save if the window closes mid-debounce.
+window.addEventListener("beforeunload", () => {
+  if (sessionDirty) writeAutosave(storage, project);
+});
 
 // The reaction recorder mounts ONCE (not in mountPanels): it holds live
 // camera/recorder state that a refresh must never wipe mid-take.

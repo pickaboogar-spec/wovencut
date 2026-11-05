@@ -191,4 +191,44 @@ assert.match(buildFfmpegArgs(dk, "o.mp4").join(" "), /sidechaincompress=threshol
 dk.music.duck = false;
 assert.doesNotMatch(buildFfmpegArgs(dk, "o.mp4").join(" "), /sidechaincompress/);
 
+// --- Pro pass 2: auto-save + snapshots ----------------------------------------
+import {
+  writeAutosave, readAutosave, clearAutosave,
+  addSnapshot, readSnapshots, removeSnapshot, MAX_SNAPSHOTS,
+} from "../js/autosave.js";
+
+function fakeStorage() {
+  const map = new Map();
+  return {
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  };
+}
+const store = fakeStorage();
+assert.equal(readAutosave(store), null);
+const wip = sampleProject();
+wip.title = "Work in progress";
+assert.equal(writeAutosave(store, wip, 123456), true);
+const rec = readAutosave(store);
+assert.equal(rec.savedAt, 123456);
+assert.equal(rec.project.title, "Work in progress");
+assert.equal(rec.project.tracks.main[0].fadeIn, 0); // rule survives the round trip
+clearAutosave(store);
+assert.equal(readAutosave(store), null);
+assert.equal(writeAutosave(store, { nope: true }), false); // junk never saved
+assert.equal(readAutosave(store), null);
+
+let snaps = addSnapshot(store, wip, "manual", 1000);
+assert.equal(snaps.length, 1);
+assert.equal(snaps[0].title, "Work in progress");
+// Snapshots are decoupled copies: later edits don't rewrite history
+wip.title = "Changed after snapshot";
+assert.equal(readSnapshots(store)[0].title, "Work in progress");
+const snapId = snaps[0].id;
+snaps = removeSnapshot(store, snapId);
+assert.equal(snaps.length, 0);
+for (let i = 0; i < MAX_SNAPSHOTS + 3; i++) addSnapshot(store, wip, "bulk", 2000 + i);
+assert.equal(readSnapshots(store).length, MAX_SNAPSHOTS); // capped, oldest dropped
+
 console.log("ALL NODE TESTS PASSED");
