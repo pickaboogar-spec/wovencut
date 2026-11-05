@@ -7,55 +7,117 @@
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<header>
-  <h1>WovenCut <span class="working-title">working title</span></h1>
-  <p class="tagline">A truly free video editor for budget creators.
-     No upsells. Bring your own Muse, bring your own Replicate.</p>
+<header class="appbar">
+  <div class="brand">
+    <h1>WovenCut <span class="working-title">working title</span></h1>
+    <p class="tagline">A truly free video editor. No upsells, no telemetry.
+       Bring your own Muse, bring your own Replicate.</p>
+  </div>
+  <!-- Every button: icon + plain-words label + tooltip. Standing design
+       rule (Paul, Nov 4 2026): "If a first-time user can't guess what a
+       button does, the button is wrong." No icon-only mystery buttons. -->
+  <nav class="toolbar" aria-label="Main actions">
+    <button type="button" class="tool-btn" id="btn-new"
+      title="Start a brand-new, empty project (your current one is replaced — save first if it matters)">
+      <span class="ico">📄</span> New Project</button>
+    <button type="button" class="tool-btn" id="btn-open"
+      title="Open a WovenCut project file (.json) you saved earlier">
+      <span class="ico">📂</span> Open Project</button>
+    <button type="button" class="tool-btn" id="btn-save"
+      title="Save this project to a file so you can reopen it later">
+      <span class="ico">💾</span> Save Project</button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <button type="button" class="tool-btn primary" id="btn-import"
+      title="Import video clips, images or audio from your computer — they land on the timeline (you can also just drag files onto the timeline)">
+      <span class="ico">🎞️</span> Import Clips</button>
+    <button type="button" class="tool-btn" id="btn-caption"
+      title="Add a caption (words on screen) starting at the playhead — then type its words in the inspector">
+      <span class="ico">💬</span> Add Caption</button>
+    <button type="button" class="tool-btn" id="btn-music"
+      title="Choose a music file to play under the whole video">
+      <span class="ico">🎵</span> Add Music</button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <button type="button" class="tool-btn" id="btn-split"
+      title="Split the selected clip into two at the playhead, so you can treat each half separately">
+      <span class="ico">✂️</span> Split at Playhead</button>
+    <button type="button" class="tool-btn" id="btn-trim"
+      title="Trim the selected clip — jumps to the trim boxes in the inspector (skip seconds from the start, set how long it plays)">
+      <span class="ico">📐</span> Trim</button>
+    <button type="button" class="tool-btn danger" id="btn-delete"
+      title="Delete the selected clip, overlay or caption from the timeline (Delete key does this too)">
+      <span class="ico">🗑️</span> Delete Selected</button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <button type="button" class="tool-btn primary" id="btn-export"
+      title="Export the finished video as an MP4 for YouTube (in this phase the export pipeline is a stub — it shows you the full render plan and renders nothing yet)">
+      <span class="ico">📤</span> Export Video</button>
+    <button type="button" class="tool-btn" id="btn-segue"
+      title="Jump to the AI Segues panel — short generated clips woven between your clips, made with your own Replicate account (later phase)">
+      <span class="ico">✨</span> AI Segue</button>
+    <button type="button" class="tool-btn" id="btn-Muse"
+      title="Jump to the Muse co-editor panel — your own Muse suggests captions and ordering; nothing applies without your say-so (later phase)">
+      <span class="ico">🤖</span> Muse Co-editor</button>
+  </nav>
 </header>
 
-<main>
-  <section class="stage">
-    <canvas id="preview" width="960" height="540"></canvas>
-    <div class="controls">
-      <button id="btn-play" type="button">▶ Play</button>
-      <button id="btn-restart" type="button">⟲ Restart</button>
-      <span id="readout" class="readout">0.0s / 0s</span>
+<main class="workspace">
+  <section class="stage-col">
+    <div class="stage">
+      <canvas id="preview" width="960" height="540"></canvas>
+      <div class="controls">
+        <button type="button" class="tool-btn" id="btn-play"
+          title="Play or pause the preview">▶️ Play</button>
+        <button type="button" class="tool-btn" id="btn-restart"
+          title="Jump back to the very start and play from there">⟲ Restart</button>
+        <span id="readout" class="readout">0.0s / 0s</span>
+      </div>
+      <p id="open-note" class="open-note"></p>
     </div>
-    <p id="open-note" class="open-note"></p>
+
+    <section class="timeline-wrap">
+      <h2>Timeline <span class="h-hint">— drop files here · drag clips to reorder · click a clip for its controls</span></h2>
+      <div id="timeline"></div>
+    </section>
   </section>
 
-  <section>
-    <h2>Timeline</h2>
-    <div id="timeline" class="timeline"></div>
-  </section>
-
-  <section class="panels">
-    <div class="panel">
-      <h2>Captions</h2>
-      <div id="panel-captions"></div>
-    </div>
-    <div class="panel">
-      <h2>Music</h2>
-      <div id="panel-music"></div>
-    </div>
-    <div class="panel">
-      <h2>Export</h2>
-      <div id="panel-export"></div>
-    </div>
-    <div class="panel">
-      <h2>AI Segues — Replicate</h2>
-      <div id="panel-replicate"></div>
-    </div>
-    <div class="panel">
-      <h2>Co-editor — Muse</h2>
-      <div id="panel-Muse"></div>
-    </div>
-  </section>
+  <aside class="inspector" id="inspector" aria-label="Inspector">
+    <h2>🎛️ Inspector</h2>
+    <div id="inspector-body"></div>
+  </aside>
 </main>
 
+<section class="panels">
+  <div class="panel" id="panel-captions-wrap">
+    <h2><span class="ico">💬</span> Captions</h2>
+    <div id="panel-captions"></div>
+  </div>
+  <div class="panel" id="panel-music-wrap">
+    <h2><span class="ico">🎵</span> Music</h2>
+    <div id="panel-music"></div>
+  </div>
+  <div class="panel" id="panel-export-wrap">
+    <h2><span class="ico">📤</span> Export</h2>
+    <div id="panel-export"></div>
+  </div>
+  <div class="panel" id="panel-replicate-wrap">
+    <h2><span class="ico">✨</span> AI Segues — Replicate</h2>
+    <div id="panel-replicate"></div>
+  </div>
+  <div class="panel" id="panel-claude-wrap">
+    <h2><span class="ico">🤖</span> Co-editor — Muse</h2>
+    <div id="panel-Muse"></div>
+  </div>
+</section>
+
 <footer>
-  <p>Phase 0 skeleton. Free forever — see README.md and WORKFLOW.md.</p>
+  <p>Phase 1 desktop build. Free forever — see README.md and WORKFLOW.md.
+     Your files never leave this computer.</p>
 </footer>
+
+<!-- Browser fallback pickers (used only when the desktop shell is absent) -->
+<input type="file" id="file-import" multiple hidden
+  accept="video/*,image/*,audio/*">
+<input type="file" id="file-music" hidden accept="audio/*">
+<input type="file" id="file-open" hidden accept=".json,application/json">
 
 <script type="module" src="js/app.js"></script>
 </body>

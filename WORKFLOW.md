@@ -9,23 +9,81 @@ free, and each user plugs in **their own Muse** (AI co-editor) and **their
 own Replicate account** (AI-generated segue/transition clips between scenes).
 Users pay their own AI providers at cost; WovenCut takes nothing.
 
+**What it is FOR (Paul, Nov 4 2026):** making long-form YouTube videos the
+simple way — drop clips in, drag them into order on a timeline, trim, caption,
+add music, export. Robust, real-editor feel; not a toy.
+
 **How it's built:** Paul directs, AI builds, Paul reviews — his
 "AI architect, human-reviewed" model. This workflow exists so that loop stays
 tight: small phases, each one ending at Paul's review before the next begins.
 
 ---
 
+## Decisions log (Paul's calls, in his words where it matters)
+
+- **2026-11-04, ~7:30 PM — Windows desktop first.** The editor is a Windows
+  desktop app (Electron). The phone-vs-desktop question is CLOSED: desktop
+  first. (Paul creates on his phone today, but the editor he wants to give
+  away is a Windows program; the current version of Windows is the target.)
+- **2026-11-04, ~7:30 PM — Drag-and-drop is the core.** Clips uploaded to the
+  app can be dragged and dropped onto the timeline line and edited there.
+  "Make it a really simple way to make a long-form YouTube video with just
+  drag and drop clip pasting capabilities" and "a really robust GUI."
+- **2026-11-04, ~7:31 PM — Icons + self-explanatory menus.** See design rule 4.
+- **2026-11-04, ~7:31 PM — Fades are tools; the default is Paul's way.**
+  See hard rule 1 (refined).
+- **2026-11-04, ~7:31 PM — Picture-in-picture overlay lane.** See Phase 1.
+- **2026-11-04, ~7:33 PM (voice call) — two later-phase features recorded:**
+  shirt logo overlay and trademark obscuring. See Phases 7–8. Both are
+  honestly scoped as HARD (computer vision); neither is promised early.
+
+---
+
 ## Paul's hard rules (baked in, not preferences)
 
-1. **First frame rule:** the first segment of every video opens at full
-   strength — **no fade-in, ever, and never an open on black.** This is
-   encoded as a constant in the code (`js/model.js`) and must survive every
-   refactor and every export path.
+1. **First-frame rule — refined by Paul, Nov 4 2026.** Paul's own videos open
+   on the first frame at full strength: no fade-in, never an open on black.
+   Fades and crossfades are standard tools WovenCut offers every user — BUT
+   the app's default is Paul's way: a new project's first clip is created
+   with fade-in = 0, sample projects ship that way, and no export preset may
+   ever prepend a fade or a black lead-in. A user may raise a clip's fade-in
+   in the inspector; the app never raises it for them. (Original Phase 0
+   wording made the rule a hard lock; Paul's refinement makes it the
+   DEFAULT, because the tool is for everyone while the rule is his craft.)
 2. **No upsells.** If a feature idea smells like a premium tier, it is cut or
    it ships free. There is no third option.
-3. **Users' keys are users' keys.** Muse and Replicate tokens are supplied by
-   each user at runtime, live only on their machine, and are never committed,
-   bundled, or proxied. Paul's own credentials never enter this codebase.
+3. **Users' keys are users' keys.** Muse and Replicate tokens are supplied
+   by each user at runtime, live only on their machine, and are never
+   committed, bundled, or proxied. Paul's own credentials never enter this
+   codebase.
+4. **Icons + words, always (Paul, Nov 4 2026).** Every menu item, toolbar
+   button, and control carries a clear icon AND a plain-words label AND a
+   tooltip that says what it does in ordinary language. No icon-only mystery
+   buttons. Paul's test, verbatim in spirit: **"If a first-time user can't
+   guess what a button does, the button is wrong."** The app must explain
+   itself.
+5. **No telemetry, no accounts, no phoning home.** The editor works offline
+   on the user's own files. (AI features call the user's own providers, with
+   the user's own keys, only when the user asks.)
+
+---
+
+## Build & release mechanics
+
+- **Develop:** `npm install` once, then `npm start` (Electron). The renderer
+  also opens in a plain browser for quick UI checks, with graceful fallbacks
+  (file pickers instead of native dialogs; export stub reports no shell).
+- **Windows .exe:** built by GitHub Actions
+  (`.github/workflows/build-windows.yml`) on a `windows-latest` runner —
+  NSIS installer + portable build via electron-builder, uploaded as a
+  workflow artifact; version tags also attach it to a GitHub Release.
+  The .exe is NOT built in the dev VM and NOT claimed tested until a real
+  Actions run + Paul's install say so.
+- **Export engine:** FFmpeg, spawned by the main process. Phase 4 bundles
+  the binary via `ffmpeg-static` (asarUnpack) with a system-ffmpeg fallback.
+  Phase 1 ships the full argument-plan builder (`js/export.js`) and a stub
+  handler that returns the plan instead of rendering — honestly labelled
+  in the UI.
 
 ---
 
@@ -35,63 +93,127 @@ Each phase ends with a **Paul review gate**: Pepper demos what works, Paul
 says ship / fix / rethink, and the outcome is recorded (see "How reviews are
 recorded") before the next phase starts.
 
-### Phase 0 — Skeleton *(this phase)*
-- Static web app, no build step, no server: plain HTML/CSS/JS modules.
-- Project data model (JSON): stills/clips track, captions track, music track,
-  per-item durations, per-cut transitions, segue items flagged AI-generated.
-- Canvas preview that plays a hardcoded sample stills sequence with captions.
-- Stub modules for captions editing, music, export, Replicate segues, and the
-  Muse co-editor panel — interfaces defined, no network calls.
-- **Review gate:** Paul opens the preview, watches the sample sequence, and
-  confirms the first frame opens at full strength.
+### Phase 0 — Skeleton *(delivered 2026-11-04; review superseded by the pivot)*
+- Static web app, project model, canvas preview of a sample woven-stills
+  sequence, stub panels. Paul pivoted the project to a Windows desktop app
+  before the formal gate; the skeleton's model, preview, and panel
+  interfaces carry forward into Phase 1.
 
-### Phase 1 — Stills timeline
-- Load real images from the user's machine; add / remove / reorder stills.
-- Per-still duration editing; save / load projects as JSON files.
-- **Review gate:** Paul builds a real sequence from his own photos.
+### Phase 1 — Windows desktop + drag-and-drop timeline *(this build)*
+- Electron shell (main + preload bridge, custom app:// protocol, native
+  file dialogs, sandboxed renderer). electron-builder targets Windows
+  (NSIS installer + portable); GitHub Actions workflow builds the .exe.
+- **Timeline editor (the centrepiece):** drop video/image/audio files from
+  the OS onto lanes; clips appear as blocks with icon, filename, and real
+  probed duration; drag blocks to REORDER the main track; click to select;
+  Delete key / ✕ button removes; click empty track to seek the preview.
+- **Inspector controls (working):** duration, trim (skip-from-start),
+  per-clip **fade-in / fade-out** (defaults 0 — Paul's rule is the default),
+  transition-in **Cut / Crossfade** with adjustable crossfade length, and
+  **Split at Playhead**.
+- **Picture-in-picture overlay lane:** blocks placed by start time over the
+  main track; corner choice (4) + size slider + start/duration in the
+  inspector — all working UI; the preview composites the overlay window at
+  the chosen corner/size. Full video compositing lands in the export graph
+  (Phase 4, FFmpeg `overlay` filter — the argument builder already emits it).
+- **Captions (basic):** Add Caption at the playhead; select on the lane;
+  edit words + timing in the inspector. Music bed: set by drop or dialog;
+  volume in the inspector (playback sync is Phase 3).
+- **Icons + labels + tooltips pass** across the whole GUI (design rule 4).
+- Export panel shows the real FFmpeg plan; the export handler is a labelled
+  stub that returns the plan (no binary bundled yet).
+- **Review gate:** the first GitHub Actions Windows build runs; Paul
+  installs the .exe, drags his own clips in, reorders, splits, trims, adds
+  a caption and a PiP overlay, and judges the GUI's robustness and whether
+  every button explains itself.
 
-### Phase 2 — Captions
-- Caption editor: text, timing tied to stills, large legible type (Paul's
-  shelf-demo standard: readable on a phone, at a glance, walking pace).
+### Phase 2 — Captions, full editor
+- Drag captions to retime on the lane; per-segment caption timing; save/load
+  polish (ffprobe-accurate durations for dialog-imported clips).
 - **Review gate:** Paul captions one full story sequence himself.
 
 ### Phase 3 — Music
-- Music track: user-supplied audio file, trim/fade-out controls, volume.
-- Fade-**out** at the end is fine. Fade-**in** on segment one is not (rule 1
-  applies to picture; audio bed may fade under the first still only if Paul
-  approves it at this gate — open question, default: no).
+- Music playback synced with the preview; trim/fade-out controls; volume.
+- Fade-**out** at the end is unrestricted. (The music-bed fade-IN question
+  from Phase 0 is answered by the refined rule 1: fades are tools with
+  Paul's defaults — the bed defaults to no fade-in under segment one.)
 - **Review gate:** Paul scores one sequence end to end.
 
-### Phase 4 — Export
-- In-browser render via ffmpeg.wasm (planned path; see `js/export.js`).
-- Export must encode the first frame rule identically to the preview:
-  segment one starts at t=0 at full opacity.
-- **Review gate:** Paul exports a real video and posts it; the open-on-black
-  check is part of acceptance.
+### Phase 4 — Real export (FFmpeg)
+- Bundle ffmpeg-static; spawn it from the main process with the argument
+  plan from `js/export.js`; progress + cancel; validate xfade stream prep,
+  PiP `overlay` compositing with real video, caption burn-in identical to
+  preview styling, music mix. Export honours every clip's fade numbers —
+  and, by default, the first clip emits no fade filter (Paul's rule).
+- **Review gate:** Paul exports a real long-form video and posts it; the
+  open-on-black check is part of acceptance.
 
 ### Phase 5 — Replicate segues
-- Per-cut "generate segue" action: sends the tail/head frames of neighbouring
-  segments to Replicate with the user's own token, drops the returned clip
-  into the timeline as a segue item (flagged `generated: true`).
-- Cost display before every generation — the user spends their own money,
-  knowingly, per segue. No silent spend.
+- Per-cut "generate segue" action (✨ AI Segue): sends tail/head frames of
+  neighbouring segments to Replicate with the user's own token; the
+  returned clip drops into the timeline flagged `generated: true`.
+- Cost displayed BEFORE every generation. No silent spend.
 - **Review gate:** Paul generates one segue on his own Replicate credit and
   judges whether it earns its cost.
 
 ### Phase 6 — Muse co-editor panel
-- Chat panel wired to the user's own Muse access: suggest caption wording,
-  sequence order, segue prompts; nothing applies without the user accepting
-  it (human-reviewed, same as Paul's model).
+- Chat panel wired to the user's own Muse access: suggest caption
+  wording, sequence order, segue prompts; nothing applies without the user
+  accepting it (human-reviewed — Paul's model).
 - **Review gate:** Paul runs a full edit session with the panel live.
 
-### Phase 7 — GitHub freeware release *(later — not now)*
-- Public repo on **Paul's GitHub account**; static site deployable from
-  GitHub Pages (the no-build-step skeleton is chosen with this in mind).
+### Phase 7 — Overlay tracking, manual first *(advanced — Paul, Nov 4 2026)*
+Two creator features that share one engine: an overlay or a mask that
+FOLLOWS something in the frame.
+- **(a) Shirt logo overlay:** place the user's own logo onto a plain
+  t-shirt in the video so it follows the wearer as they move. FIRST
+  VERSION: manual keyframing — the user positions the logo, sets a few
+  keyframes along the clip, and the app interpolates position/scale/
+  rotation (and corner-pin skew) between them. This is honest, buildable,
+  and genuinely useful.
+- **(b) Trademark obscuring:** blur/pixelate regions the user draws over
+  trademarked or copyrighted logos in a frame, so creators don't have to
+  worry about infringement claims. FIRST VERSION: manual blur regions with
+  the same keyframed tracking as (a).
+  **Honesty note, binding for UI copy:** blurring is a creator convenience,
+  NOT a legal guarantee. The app must never promise that obscuring a mark
+  eliminates legal risk; copy says what the tool does (hides the mark),
+  never what a court would say.
+- Both controls follow design rule 4 (icon + plain label + tooltip).
+- **Review gate:** Paul keyframes a logo onto a moving shirt clip and a
+  blur over a brand mark, and judges whether the manual workflow is
+  tolerable.
+
+### Phase 8 — Assisted tracking *(research-grade — later, maybe much later)*
+- Assisted auto-tracking for Phase 7's overlays/masks (point the app at a
+  logo/shirt region and let it follow), and detection SUGGESTIONS for
+  trademark-like regions. Honest scoping: this is motion/plane tracking —
+  real computer vision, the hardest thing on this roadmap. It is phased
+  last on purpose, may ship as "good on easy shots only," and is never a
+  release blocker for the free editor.
+- **Review gate:** Paul tests auto-tracking on one easy, well-lit clip.
+
+### Phase 9 — GitHub freeware release + instructional video
+- Public repo on **Paul's GitHub account**; Windows installer + portable
+  from the Actions workflow attached to a GitHub Release.
 - **Open question for Paul — license:** MIT (anyone can use/fork, including
   commercially) vs GPL (forks must stay open/free — arguably closer to the
   "truly free forever" spirit). **Paul decides; do not default this for him.**
-- Release checklist: README with the freeware philosophy, token-safety notes,
-  first-frame rule documented as a feature, sample project included.
+- Release checklist: README with the freeware philosophy, token-safety
+  notes, first-frame rule documented as a feature, sample project included.
+- **Instructional video (planned deliverable, ships with the release):**
+  a how-to video made in Paul's own woven-stills style — captioned stills
+  woven into a story, first frame at full strength — recorded once there is
+  a real Windows build to show. Outline:
+  1. Install (download the .exe from GitHub, run the installer)
+  2. Drop clips onto the timeline
+  3. Arrange — drag to reorder, split, trim, fades & crossfades
+  4. Captions — add and word them
+  5. Music — drop a bed, set the volume
+  6. Export — MP4 for YouTube, and the first-frame rule as a feature
+  7. Optional: your own Muse co-editor + Replicate segues (your keys,
+     your cost, your call)
+  Posted to Paul's YouTube and linked from the repo README.
 
 ---
 
@@ -100,8 +222,8 @@ recorded") before the next phase starts.
 - Every phase gate gets an entry appended to this file under "Review log"
   with: date, phase, what Paul saw, his verdict (ship / fix / rethink), and
   any rule or direction he set.
-- Code changes land as git commits in the Code Vault with messages naming the
-  phase (`Phase 1: stills timeline — load/reorder/durations`).
+- Code changes land as git commits in the Code Vault with messages naming
+  the phase (`Phase 1: Windows desktop + drag-and-drop timeline`).
 - Per Paul's Code Vault rule, commits here are also mirrored to Drive
   (Pepper > Code Vault), same as the games and VoiceBridge.
 - If a phase is rethought, the old plan stays in the log — the record of how
@@ -110,5 +232,23 @@ recorded") before the next phase starts.
 ## Review log
 
 - **2026-11-04 — Phase 0 skeleton delivered for review.** Static skeleton,
-  sample woven-stills preview, all AI/export paths stubbed. Awaiting Paul's
-  first look.
+  sample woven-stills preview, all AI/export paths stubbed. (Superseded the
+  same evening by Paul's pivot to a Windows desktop app — see below.)
+- **2026-11-04, ~7:30–7:33 PM — Paul's pivot + feature directions (chat and
+  voice call).** Windows desktop first (phone question closed);
+  drag-and-drop timeline as the core for long-form YouTube videos; robust
+  GUI; icons + plain labels + tooltips everywhere ("If a first-time user
+  can't guess what a button does, the button is wrong"); fades/crossfades
+  as standard tools with Paul's first-frame rule kept as the app DEFAULT
+  (first clip fade-in = 0); picture-in-picture overlay lane; instructional
+  video planned for the release, in Paul's woven-stills style; shirt-logo
+  overlay and trademark obscuring recorded as advanced later phases
+  (manual keyframing first, assisted tracking last, no legal guarantees
+  promised for blurring).
+- **2026-11-04 — Phase 1 build delivered for review.** Electron Windows
+  app: drag-and-drop timeline with overlay/captions/music lanes, reorder,
+  split, trim, fades/crossfades, PiP controls, inspector, icon+label+
+  tooltip pass, FFmpeg export as a labelled plan-stub, GitHub Actions
+  Windows build workflow. NOT yet run: the Electron GUI and the .exe build
+  have not been executed anywhere; the first Actions run + Paul's install
+  are part of this phase's gate. Awaiting Paul's review.

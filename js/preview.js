@@ -1,17 +1,18 @@
-// WovenCut (working title) — canvas preview player
+// WovenCut (working title) — canvas preview player (Phase 1 desktop)
 // ---------------------------------------------------------------------------
-// Plays a project's picture track on a <canvas>: placeholder frames drawn
-// from each item's hue + label (real image loading is Phase 1), captions
-// rendered large at the bottom, dissolves honoured between segments.
+// Plays a project's main track on a <canvas>: placeholder frames drawn
+// from each item's hue + label (real thumbnails/video frames are a later
+// phase), per-clip fade-in/fade-out honoured, crossfades rendered across
+// boundaries, PiP overlays composited in their corner, captions large at
+// the bottom.
 //
-// PAUL'S FIRST-FRAME RULE is enforced here, not just documented: the first
-// segment is drawn at opacity 1 from t=0 — see RULES.FIRST_SEGMENT_FADE_IN_MS
-// in model.js (0, and not project-configurable). Crossfades only ever happen
-// across a cut boundary, between segment n and n+1.
+// PAUL'S FIRST-FRAME RULE: the first clip's fadeIn defaults to 0 (see
+// RULES in model.js), so a new project opens on segment one at full
+// strength from t=0. The fade machinery here is a TOOL — it draws whatever
+// the clip's numbers say, and Paul's projects say 0. Crossfades only ever
+// happen across a cut boundary, between segment n and n+1.
 
-import { RULES, captionAt, itemStartTimes } from "./model.js";
-
-const DISSOLVE_MS = 600; // between segments only — never onto segment one
+import { captionAt, itemStartTimes, overlaysAt, projectDuration } from "./model.js";
 
 export class Preview {
   constructor(canvas) {
@@ -19,10 +20,10 @@ export class Preview {
     this.ctx = canvas.getContext("2d");
     this.project = null;
     this.playing = false;
-    this.startedAt = 0;   // performance.now() when playhead was at 0
-    this.offset = 0;      // seconds into the project when paused
+    this.startedAt = 0;
+    this.offset = 0;
     this.raf = null;
-    this.onTick = null;   // optional callback(seconds) for UI readouts
+    this.onTick = null;
   }
 
   load(project) {
@@ -48,9 +49,9 @@ export class Preview {
   pause() {
     this.playing = false;
     if (this.raf) cancelAnimationFrame(this.raf);
-    this.offset = this.project
-      ? Math.min(this.currentTime(), this.project.stills.reduce((s, i) => s + i.duration, 0))
-      : 0;
+    if (this.project) {
+      this.offset = Math.min(this.currentTime(), projectDuration(this.project));
+    }
   }
 
   restart() {
@@ -60,69 +61,116 @@ export class Preview {
     if (!this.playing) this.play();
   }
 
+  seek(t) {
+    const total = this.project ? projectDuration(this.project) : 0;
+    this.offset = Math.max(0, Math.min(t, total));
+    if (this.playing) this.startedAt = performance.now() - this.offset * 1000;
+    this.draw(this.offset);
+    if (this.onTick) this.onTick(this.offset);
+  }
+
   currentTime() {
     if (!this.playing) return this.offset;
     return (performance.now() - this.startedAt) / 1000;
   }
 
+  // Alpha of a main-track item at a point inside it: its own fade-in and
+  // fade-out applied. A 0 fade contributes nothing — by default, segment
+  // one sits at alpha 1 from its first instant (Paul's rule).
+  fadeAlpha(item, intoItem) {
+    let a = 1;
+    if (item.fadeIn > 0 && intoItem < item.fadeIn) a = Math.min(a, intoItem / item.fadeIn);
+    const remain = item.duration - intoItem;
+    if (item.fadeOut > 0 && remain < item.fadeOut) a = Math.min(a, remain / item.fadeOut);
+    return a;
+  }
+
   draw(t) {
     const { ctx, canvas, project } = this;
-    if (!project) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!project || project.tracks.main.length === 0) {
+      ctx.fillStyle = "#101116";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.font = "600 26px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Drop clips onto the timeline to begin", canvas.width / 2, canvas.height / 2);
+      return;
+    }
     const starts = itemStartTimes(project);
-    const total = starts[starts.length - 1] + project.stills[project.stills.length - 1].duration;
+    const total = projectDuration(project);
+    const tc = Math.min(t, total);
 
-    let idx = project.stills.findIndex(
-      (item, i) => t >= starts[i] && t < starts[i] + item.duration
+    let idx = project.tracks.main.findIndex(
+      (item, i) => tc >= starts[i] && tc < starts[i] + item.duration
     );
-    if (idx === -1) idx = project.stills.length - 1; // hold last frame past end
+    if (idx === -1) idx = project.tracks.main.length - 1;
 
-    const item = project.stills[idx];
-    const intoItem = t - starts[idx];
+    const item = project.tracks.main[idx];
+    const intoItem = tc - starts[idx];
+    this.drawFrame(item, this.fadeAlpha(item, intoItem), 0, 0, canvas.width, canvas.height);
 
-    this.drawFrame(item, 1);
-
-    // Dissolve across the boundary INTO the next segment, late in this one.
-    // Segment one's own arrival is never faded — this branch only runs when
-    // idx >= 0 is showing a segment and the NEXT one dissolves in; segment
-    // one itself entered at full strength at t=0 by construction.
-    const next = project.stills[idx + 1];
-    if (next && next.transitionIn === "dissolve") {
-      const remainMs = (item.duration - intoItem) * 1000;
-      if (remainMs < DISSOLVE_MS) {
-        this.drawFrame(next, 1 - remainMs / DISSOLVE_MS);
+    // Crossfade across the boundary INTO the next segment.
+    const next = project.tracks.main[idx + 1];
+    if (next && next.transitionIn === "crossfade") {
+      const remain = item.duration - intoItem;
+      const d = next.transitionDuration || 0.5;
+      if (remain < d) {
+        this.drawFrame(next, 1 - remain / d, 0, 0, canvas.width, canvas.height);
       }
     }
 
-    const cap = captionAt(project, Math.min(t, total - 0.001));
+    // Picture-in-picture overlays, in their chosen corner.
+    for (const o of overlaysAt(project, tc)) {
+      const w = (canvas.width * o.sizePct) / 100;
+      const h = (w * 9) / 16;
+      const m = 24;
+      const pos = {
+        "top-left": [m, m],
+        "top-right": [canvas.width - w - m, m],
+        "bottom-left": [m, canvas.height - h - m],
+        "bottom-right": [canvas.width - w - m, canvas.height - h - m],
+      }[o.corner] || [canvas.width - w - m, canvas.height - h - m];
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pos[0], pos[1], w, h);
+      this.drawFrame(o, 1, pos[0], pos[1], w, h, true);
+      ctx.restore();
+    }
+
+    const cap = captionAt(project, Math.min(tc, total - 0.001));
     if (cap) this.drawCaption(cap.text);
   }
 
   // Placeholder frame: a two-tone wash from the item's hue plus its label.
-  // Phase 1 replaces this with the user's real image / clip frames.
-  drawFrame(item, alpha) {
-    const { ctx, canvas } = this;
+  // Later phases replace this with real image/clip frames.
+  drawFrame(item, alpha, x, y, w, h, small = false) {
+    const { ctx } = this;
     ctx.save();
     ctx.globalAlpha = alpha;
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
     grad.addColorStop(0, `hsl(${item.hue} 45% 32%)`);
     grad.addColorStop(1, `hsl(${item.hue} 55% 18%)`);
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(x, y, w, h);
     ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.font = "600 34px system-ui, sans-serif";
+    ctx.font = `600 ${small ? 15 : 34}px system-ui, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(item.label, canvas.width / 2, canvas.height / 2);
-    if (item.generated) {
+    const label = item.label.length > (small ? 22 : 44)
+      ? item.label.slice(0, (small ? 22 : 44) - 1) + "…"
+      : item.label;
+    ctx.fillText(label, x + w / 2, y + h / 2);
+    if (item.generated && !small) {
       ctx.font = "500 16px system-ui, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.65)";
       ctx.fillText("AI segue — generated with the user's own Replicate account",
-        canvas.width / 2, canvas.height / 2 + 34);
+        x + w / 2, y + h / 2 + 34);
     }
     ctx.restore();
   }
 
-  // Captions: large, high-contrast, phone-readable (Paul's legibility
-  // standard) with a dark backing band.
+  // Captions: large, high-contrast, readable at a glance (Paul's standard).
   drawCaption(text) {
     const { ctx, canvas } = this;
     ctx.save();

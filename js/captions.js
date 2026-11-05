@@ -1,32 +1,52 @@
-// WovenCut (working title) — captions editor (STUB, Phase 2)
+// WovenCut (working title) — captions (basic editing live; full editor = Phase 2 gate)
 // ---------------------------------------------------------------------------
-// Interface only. The model already carries captions as
-// [{ start, end, text }] in seconds (see model.js); Phase 2 builds the
-// editing UI on top of these functions.
+// The model carries captions as [{ id, start, end, text }] in seconds.
+// Phase 1 desktop: captions can be added (💬 Add Caption button), selected
+// on the captions lane, and their words/timing edited in the inspector —
+// those mutations live here and WORK. The full caption editor (drag to
+// retime on the lane, per-segment auto-timing) remains the Phase 2 gate.
 //
-// Design constraints inherited from Paul's other demo work:
+// Design constraints inherited from Paul's other work:
 //  - Caption type is LARGE and legible on a phone at a glance.
 //  - One caption per segment by default; free timing is the exception.
-// TODO(Phase 2): caption list UI, per-segment text fields, retime by drag.
+
+import { uid } from "./model.js";
 
 export function listCaptions(project) {
-  return [...project.captions];
+  return [...project.captions].sort((a, b) => a.start - b.start);
 }
 
-// TODO(Phase 2): mutate project.captions, re-render preview + timeline.
-export function setCaptionText(project, index, text) {
-  throw new Error("captions.setCaptionText — not implemented until Phase 2");
+export function addCaption(project, start, text = "") {
+  const caption = {
+    id: uid("t"),
+    start: +start.toFixed(2),
+    end: +(start + 4).toFixed(2),
+    text,
+  };
+  project.captions.push(caption);
+  return caption;
 }
 
-// TODO(Phase 2): shift a caption's start/end, clamped to neighbours.
-export function retimeCaption(project, index, start, end) {
-  throw new Error("captions.retimeCaption — not implemented until Phase 2");
+export function setCaptionText(project, id, text) {
+  const c = project.captions.find((x) => x.id === id);
+  if (c) c.text = text;
 }
 
-// Mount point for the Phase 2 editor panel.
+// Shift a caption's start/end, clamped to the project and to >= 0.5s long.
+export function retimeCaption(project, id, start, end) {
+  const c = project.captions.find((x) => x.id === id);
+  if (!c) return;
+  c.start = Math.max(0, +start.toFixed(2));
+  c.end = Math.max(c.start + 0.5, +end.toFixed(2));
+}
+
+// Panel: summary + how editing works in this phase.
 export function mountCaptionsEditor(project, container) {
+  const n = project.captions.filter((c) => c.text).length;
   container.innerHTML =
-    `<p class="stub-note">Captions editor arrives in Phase 2. ` +
-    `This project carries ${project.captions.filter((c) => c.text).length} ` +
-    `captions, already rendering in the preview.</p>`;
+    `<p class="stub-note">${n} caption${n === 1 ? "" : "s"} in this project. ` +
+    `Add one with the 💬 Add Caption button (it lands at the playhead), ` +
+    `click it on the Captions lane, and edit its words and timing in the ` +
+    `inspector. The full drag-to-retime caption editor is the Phase 2 ` +
+    `review gate.</p>`;
 }

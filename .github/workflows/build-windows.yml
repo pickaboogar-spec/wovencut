@@ -1,0 +1,49 @@
+name: Build Windows installer
+
+# WovenCut is a Windows desktop app (Paul's decision, Nov 4 2026).
+# The .exe is built here, on a real Windows runner — it is NOT built on
+# Paul's machine or in the dev VM. Pushing a version tag (v0.2.0 etc.) or
+# running this workflow manually produces the installer + portable build
+# as downloadable artifacts; tags also attach them to a GitHub Release.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows installer + portable
+        run: npx electron-builder --win nsis portable --publish never
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wovencut-windows
+          path: |
+            dist/*.exe
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
