@@ -127,9 +127,58 @@ recorded") before the next phase starts.
   a caption and a PiP overlay, and judges the GUI's robustness and whether
   every button explains itself.
 
+### Phase 1b — Professional upgrade batch *(built 2026-11-05, Paul's direction)*
+- Paul authorized a research-and-build session (Nov 5, while he was out):
+  study Premiere Pro / DaVinci Resolve / Final Cut Pro / CapCut Desktop,
+  then bring WovenCut toward professional feel without asking permission.
+  Research + gap analysis: `docs/PRO-RESEARCH-2026-11-05.md` (+ the two
+  sourced research files in `docs/`).
+- **Undo / Redo for everything** — snapshot history, 80 steps
+  (`js/history.js`); toolbar buttons + Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y.
+- **Timeline zoom** — Zoom Out / Zoom In / Fit Whole Video + % readout;
+  `+`/`-` keys. **Snapping (magnet)** — toggle button (ON by default) +
+  `N` key; playhead and dragged blocks stick to clip / caption / layer /
+  marker edges; Alt while dragging = free placement.
+- **Drag-to-retime** — layer, background and caption blocks drag to
+  change start time (this delivers the Phase 2 caption-drag item early);
+  locked pairs stay exempt (they follow their clip).
+- **Timecode** — HH:MM:SS:FF readout at the project fps; adaptive ruler
+  ticks labelled MM:SS with minor ticks; click ruler to seek.
+- **Markers** — 🚩 Add Marker button + `M` key; flags on the ruler;
+  click to jump; name/time/delete in the inspector; saved in the file.
+- **Shortcuts + help panel** — J/K/L shuttle (to ±4×, speed shown),
+  ←/→ 1 s (Shift 5 s), , / . one frame, Home/End, S split (selected
+  clip, else clip under playhead), M, N, +/−, Delete, Ctrl+S/O. Keys go
+  inert while typing in a field.
+- **Audio waveforms** — real peaks decoded locally (Web Audio) for
+  imported clips and the music bed, drawn in the blocks, stored in the
+  project file; never a fake wave. Desktop file bytes come via a new
+  read-only IPC (`file:readBytes`, user-picked paths only).
+- **Project settings** — frame shape presets (1080p, 720p, vertical
+  9:16, square 1:1, custom) + fps 24/25/30/50/60; preview canvas matches
+  the frame; model v3 gains `settings` / `markers` / `exportPreset`
+  with migration defaults for v1/v2 files.
+- **Export presets** — YouTube 1080p, YouTube 4K, Vertical, Square, Use
+  project settings; wired into the FFmpeg planner (scale + fps in the
+  args). Rendering stays the Phase 4 stub; every preset restates the
+  first-frame rule.
+- **Polish pass** — taller labelled ruler, gold focus outlines, themed
+  scrollbars, unified panel headers. Big type / big targets unchanged.
+- **Verified:** node --check on all JS; unit tests (timecode, history,
+  presets, migrations, split/marker — caught and fixed one v2-migration
+  bug); headless-Chromium CDP interaction tests (zoom, inspectors,
+  marker add/undo, delete undo/redo, snap toggle, split fallback,
+  real-waveform drop) all pass; screenshots in `~/workspace/your_files/`
+  (`wovencut-pro-*.png`). The .exe is still unbuilt (Linux VM) — the
+  Phase 1 gate (first Actions build + Paul's install) is unchanged.
+- **Next from the gap analysis:** auto-save + recovery vault; SRT
+  import/export; loudness −14 LUFS (with Phase 4); music ducking;
+  ~12-type transitions menu; ripple trim Q/W; per-lane Lock/Hide/Mute.
+
 ### Phase 2 — Captions, full editor
-- Drag captions to retime on the lane; per-segment caption timing; save/load
-  polish (ffprobe-accurate durations for dialog-imported clips).
+- ~~Drag captions to retime on the lane~~ *(delivered early in Phase 1b)*;
+  per-segment caption timing; save/load polish (ffprobe-accurate
+  durations for dialog-imported clips).
 - **Review gate:** Paul captions one full story sequence himself.
 
 ### Phase 3 — Music
@@ -252,3 +301,19 @@ FOLLOWS something in the frame.
   Windows build workflow. NOT yet run: the Electron GUI and the .exe build
   have not been executed anywhere; the first Actions run + Paul's install
   are part of this phase's gate. Awaiting Paul's review.
+- **2026-11-05 — Phase 1b professional upgrade batch delivered for
+  review.** Research on Premiere Pro / DaVinci Resolve / Final Cut Pro /
+  CapCut Desktop (two sourced research docs + gap analysis in `docs/`),
+  then built same day: undo/redo for everything, timeline zoom + fit,
+  snapping (on by default), drag-to-retime for positioned blocks and
+  captions, HH:MM:SS:FF timecode + adaptive ruler, markers, JKL shuttle
+  + full shortcut set with an on-screen help panel, real decoded audio
+  waveforms, project settings (frame shape + fps), export presets wired
+  to the planner, and a dark-UI polish pass. All locked rules held:
+  first-frame default intact (asserted in tests), icons+words+tooltips
+  on every new control, no watermark/locks/nags, beta label kept, terms
+  gate and donation plumbing untouched, export rendering still an
+  honest Phase 4 stub. Verified with node --check, unit tests, and
+  headless-Chromium interaction tests + screenshots. NOT yet run: the
+  .exe build (awaits the first GitHub Actions run on Paul's future
+  repo) and Paul's hands-on review — same gate as Phase 1.
