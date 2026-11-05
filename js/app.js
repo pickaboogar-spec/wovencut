@@ -12,7 +12,7 @@ import {
   newOverlayItem, projectDuration, sampleProject, emptyProject,
   syncLockedItems, uid,
 } from "./model.js";
-import { TimelineEditor, layerIndex, removeItem, splitMainItemAt } from "./timeline.js";
+import { TimelineEditor, layerIndex, removeItem, rippleTrimToPlayhead, splitMainItemAt } from "./timeline.js";
 import { Preview } from "./preview.js";
 import { History } from "./history.js";
 import { mountSettingsPanel } from "./settings.js";
@@ -238,6 +238,10 @@ function renderInspector() {
       <div class="insp-actions">
         <button type="button" class="tool-btn" data-act="split"
           title="Split this clip into two at the playhead">✂️ Split at Playhead</button>
+        <button type="button" class="tool-btn" data-act="trimq"
+          title="Ripple-trim: cut everything before the playhead off this clip's start — later clips slide earlier to close the gap (key: Q)">⏪ Trim Start to Playhead (Q)</button>
+        <button type="button" class="tool-btn" data-act="trimw"
+          title="Ripple-trim: cut this clip's tail off at the playhead — later clips slide earlier to close the gap (key: W)">⏩ Trim End to Playhead (W)</button>
         <button type="button" class="tool-btn danger" data-act="delete"
           title="Remove this clip from the timeline">🗑️ Delete Clip</button>
       </div>`;
@@ -484,8 +488,14 @@ function wireInspectorActions(lane, id) {
     btn.addEventListener("click", () => {
       if (btn.dataset.act === "delete") doDelete();
       if (btn.dataset.act === "split") doSplit();
+      if (btn.dataset.act === "trimq") doRippleTrim("start");
+      if (btn.dataset.act === "trimw") doRippleTrim("end");
     });
   });
+}
+
+function doRippleTrim(side) {
+  if (rippleTrimToPlayhead(project, preview.currentTime(), side)) refresh();
 }
 
 function doDelete() {
@@ -835,6 +845,14 @@ document.addEventListener("keydown", (e) => {
     case "s":
     case "S":
       doSplit();
+      break;
+    case "q":
+    case "Q":
+      doRippleTrim("start");
+      break;
+    case "w":
+    case "W":
+      doRippleTrim("end");
       break;
     case "m":
     case "M":

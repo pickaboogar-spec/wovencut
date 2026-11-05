@@ -231,4 +231,19 @@ assert.equal(snaps.length, 0);
 for (let i = 0; i < MAX_SNAPSHOTS + 3; i++) addSnapshot(store, wip, "bulk", 2000 + i);
 assert.equal(readSnapshots(store).length, MAX_SNAPSHOTS); // capped, oldest dropped
 
+// --- Pro pass 2: ripple trim Q/W ------------------------------------------------
+import { rippleTrimToPlayhead } from "../js/timeline.js";
+const rt = sampleProject();
+assert.equal(rippleTrimToPlayhead(rt, 6, "start"), rt.tracks.main[1].id);
+assert.equal(rt.tracks.main[1].duration, 2);   // 4s clip, head cut at 2s in
+assert.equal(rt.tracks.main[1].trimIn, 2);
+assert.equal(projectDuration(rt), 13);          // everything after slid earlier
+const rt2 = sampleProject();
+assert.equal(rippleTrimToPlayhead(rt2, 6, "end"), rt2.tracks.main[1].id);
+assert.equal(rt2.tracks.main[1].duration, 2);
+assert.equal(projectDuration(rt2), 13);
+assert.equal(rippleTrimToPlayhead(rt2, 4, "end"), null);  // boundary: no-op
+assert.equal(rippleTrimToPlayhead(rt2, 99, "start"), null); // outside: no-op
+assert.equal(rt2.tracks.main[0].fadeIn, 0); // first-frame rule untouched
+
 console.log("ALL NODE TESTS PASSED");

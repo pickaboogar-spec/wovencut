@@ -71,6 +71,31 @@ export function splitMainItemAt(project, itemId, atTime) {
   return second.id;
 }
 
+// Ripple trim to the playhead (pro pass 2 — the Q/W keys of Premiere
+// and CapCut). The main track is gapless, so trimming one clip's head or
+// tail pulls everything after it along: that IS ripple behaviour here.
+//   side "start" (Q): the clip's head is cut back to the playhead —
+//     its trimIn grows, its duration shrinks.
+//   side "end" (W): the clip's tail is cut at the playhead.
+// Returns the trimmed item's id, or null when the playhead isn't
+// strictly inside a clip (nothing to trim).
+export function rippleTrimToPlayhead(project, atTime, side) {
+  const starts = itemStartTimes(project);
+  const i = project.tracks.main.findIndex(
+    (it, k) => atTime > starts[k] + 0.05 && atTime < starts[k] + it.duration - 0.05
+  );
+  if (i === -1) return null;
+  const item = project.tracks.main[i];
+  const into = +(atTime - starts[i]).toFixed(3);
+  if (side === "start") {
+    item.trimIn = +(item.trimIn + into).toFixed(3);
+    item.duration = +(item.duration - into).toFixed(3);
+  } else {
+    item.duration = into;
+  }
+  return item.id;
+}
+
 export function removeItem(project, lane, id) {
   if (lane === "main") {
     project.tracks.main = project.tracks.main.filter((it) => it.id !== id);
