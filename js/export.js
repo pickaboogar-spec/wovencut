@@ -183,6 +183,74 @@ export function buildYoutubeMetadata(project) {
   };
 }
 
+// TikTok + Instagram upload kits (Paul, Nov 4 2026: "build in a TikTok
+// uploader and an Instagram uploader too if those are possible").
+// What's possible TODAY, honestly: both platforms have official upload
+// pages and both take the same kit treatment as YouTube — caption text
+// written for the user (with the ORIGINAL CREATOR @-MENTIONED, which is
+// the credit that actually reaches them on those platforms, since
+// caption links aren't clickable there), plus a button opening the
+// platform's own upload page. One-click API posting is a later phase:
+// TikTok's Content Posting API and Instagram's Content Publishing API
+// both exist, but each demands a registered, reviewed developer app and
+// the user's own account connection — it lands under the same
+// bring-your-own-account rule when it lands.
+export function buildSocialCaption(project, platform) {
+  const credit = project.sourceCredit || {};
+  const mention = credit.creator
+    ? (credit.creator.startsWith("@") ? credit.creator : `@${credit.creator}`)
+    : "";
+  const lines = [];
+  lines.push(project.title || "My new video");
+  if (mention || credit.title) {
+    lines.push("");
+    lines.push(
+      `Reaction to ${credit.title ? `"${credit.title}"` : "the original"}${mention ? ` by ${mention}` : ""} — all credit to the original creator, go follow them! 🙏`
+    );
+  }
+  if (credit.url) {
+    lines.push(
+      platform === "tiktok"
+        ? `Original video: ${credit.url}`
+        : `Original video link is in the first comment 👇`
+    );
+  }
+  const tags = ["#reaction"];
+  if (mention) tags.push(`#${mention.slice(1)}`);
+  if (platform === "instagram") tags.push("#reels");
+  lines.push("", tags.join(" "));
+  return lines.join("\n");
+}
+
+function socialSection(project) {
+  const tt = buildSocialCaption(project, "tiktok");
+  const ig = buildSocialCaption(project, "instagram");
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const kit = (key, icon, name, text, openLabel, guide) => `
+    <div class="social-kit">
+      <h3>${icon} ${name} upload kit</h3>
+      <textarea rows="7" readonly data-kit="${key}-text">${esc(text)}</textarea>
+      <div class="insp-actions">
+        <button type="button" class="tool-btn" data-action="${key}-copy"
+          title="Copy the ${name} caption — the original creator is @-mentioned in it automatically">📋 Copy Caption</button>
+        <button type="button" class="tool-btn primary" data-action="${key}-open"
+          title="Open ${name}'s own upload page in your browser">${openLabel}</button>
+      </div>
+      <p class="yt-status stub-note" data-kit="${key}-status" hidden></p>
+      <details class="yt-guide">
+        <summary>❓ How it works</summary>
+        <p class="stub-note">${guide}</p>
+      </details>
+    </div>`;
+  return `
+    <div class="social-kits">
+      ${kit("tt", "🎵", "TikTok", tt, "▶️ Open TikTok Upload",
+        "TikTok's sign-in is TikTok's own (it also offers Google and Facebook buttons on its page). Press Open TikTok Upload, sign in there if asked, drop in your exported video (best: a vertical 1080×1920 export for TikTok), and paste the caption. The original creator is @-mentioned in it — on TikTok that's the credit that actually notifies them, because links in captions aren't clickable for most accounts. One-click posting through TikTok's official API needs a reviewed developer app, so it's a later phase; your login never touches this app either way.")}
+      ${kit("ig", "📸", "Instagram", ig, "▶️ Open Instagram",
+        "This is where one login really does span both apps: Instagram and Facebook share Meta's Accounts Center, so the login you use for one usually opens the other. Press Open Instagram, tap the + Create button, choose your video (Reels take vertical 1080×1920), and paste the caption — the original creator is @-mentioned automatically. Instagram captions can't hold clickable links either, so the kit also puts the original video's link ready for your first comment; and for a Reel, Instagram's own “Invite collaborator” option can credit the original creator even harder. One-click posting via Instagram's official API needs a reviewed Meta app — later phase, same rule: sign-in happens on Meta's page, never inside this app.")}
+    </div>`;
+}
+
 function ytSection(project) {
   const yt = buildYoutubeMetadata(project);
   return `
@@ -209,6 +277,19 @@ function ytSection(project) {
           title="Open YouTube's upload page in your browser — drop in the exported video, paste the upload text, done">▶️ Open YouTube Upload Page</button>
       </div>
       <p class="yt-status stub-note" hidden></p>
+      ${socialSection(project)}
+      <details class="yt-guide">
+        <summary title="Plain step-by-step: how your YouTube channel connects to this upload option">❓ How to link your YouTube channel — step by step</summary>
+        <ol>
+          <li><strong>Your channel lives on your Google account.</strong> One Google login covers Gmail, YouTube, and the rest of Google — if you can sign in to Gmail, you already have the login YouTube wants. (Meta's one login covers Facebook, Instagram, and Threads; YouTube is Google's, so it's the Google login that does this job.)</li>
+          <li><strong>No channel yet?</strong> Go to youtube.com, click your profile picture, and choose “Create a channel.” It takes a minute and it's free.</li>
+          <li><strong>Press ▶️ Open YouTube Upload Page</strong> (above). Your browser opens YouTube's own upload page. If it asks you to sign in, sign in <em>there, on Google's page</em> — WovenCut never sees or stores your Google password. That's deliberate: the app holds no accounts at all.</li>
+          <li><strong>More than one channel?</strong> On YouTube, click your profile picture → <em>Switch account</em> and pick the channel you want <em>before</em> you upload, so the video lands on the right one.</li>
+          <li><strong>Drop in your exported video</strong>, then press 📋 Copy Upload Text here and paste it into the title and description boxes — your original-creator credit is already inside.</li>
+          <li><strong>Answer YouTube's questions</strong> (audience, visibility), press Publish, and you're live.</li>
+        </ol>
+        <p class="stub-note">Coming in a later phase: a “Sign in with Google” button that sends the video up in one click. It will still sign you in on Google's own page — same rule: your password never touches this app.</p>
+      </details>
     </div>`;
 }
 
@@ -279,4 +360,28 @@ export function mountExportPanel(project, container, hooks = {}) {
     window.open("https://www.youtube.com/upload", "_blank");
     say("▶️ YouTube's upload page is opening in your browser. Drop in the exported MP4, then paste the upload text (Copy button above).");
   });
+
+  // TikTok / Instagram kit wiring (same copy + open-page pattern).
+  for (const [key, url, name] of [
+    ["tt", "https://www.tiktok.com/upload", "TikTok"],
+    ["ig", "https://www.instagram.com/", "Instagram"],
+  ]) {
+    const text = container.querySelector(`[data-kit="${key}-text"]`)?.value || "";
+    const st = container.querySelector(`[data-kit="${key}-status"]`);
+    const sayK = (msg) => {
+      if (st) { st.hidden = false; st.textContent = msg; }
+    };
+    container.querySelector(`[data-action="${key}-copy"]`)?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        sayK("📋 Caption copied — paste it into the upload page.");
+      } catch {
+        sayK("Copy didn't work here — the caption is in the box above; select and copy it by hand.");
+      }
+    });
+    container.querySelector(`[data-action="${key}-open"]`)?.addEventListener("click", () => {
+      window.open(url, "_blank");
+      sayK(`▶️ ${name} is opening in your browser. Add your exported video, then paste the caption.`);
+    });
+  }
 }

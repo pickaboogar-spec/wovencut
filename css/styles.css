@@ -192,3 +192,16 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 .yt-kit { margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 10px; }
 .yt-desc { width: 100%; font: inherit; font-size: 14px; }
 .reaction-credit { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+
+/* Step-by-step guide (YouTube linking) */
+.yt-guide { margin-top: 12px; }
+.yt-guide summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 6px 0; }
+.yt-guide ol { margin: 8px 0; padding-left: 22px; font-size: 14.5px; line-height: 1.55; }
+.yt-guide li { margin-bottom: 8px; }
+
+/* Social upload kits (TikTok / Instagram) */
+.social-kits { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.social-kit { border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 12px; }
+.social-kit h3 { margin: 4px 0 8px; }
+.social-kit textarea { width: 100%; font: inherit; font-size: 14px; }
+@media (max-width: 900px) { .social-kits { grid-template-columns: 1fr; } }
