@@ -1,0 +1,96 @@
+WovenCut - Terms of Use (Beta, draft v2)
+
+These Terms of Use (the "Terms") are a binding agreement between you and the authors and distributors of WovenCut (together, "we," "us," or the "Authors"). By completing the acceptance process described in §1 — and only that way — you agree to these Terms. If you do not agree, do not install or use WovenCut, and choose "Decline" when the Terms are presented.
+
+1. Agreement and acceptance
+1.1 How this agreement is formed. Before WovenCut's editor can be opened for the first time, the software presents these Terms on a series of screens. Each screen must be scrolled to its end and its checkbox affirmatively checked before you may continue, and the final "I Agree" control stays disabled until every screen has been acknowledged. Clicking "I Agree" is your electronic signature and your unambiguous manifestation of assent to these Terms.
+1.2 Electronic records consent. You consent to enter into this agreement electronically and to receive and keep these Terms in electronic form, as permitted by the federal E-SIGN Act (15 U.S.C. § 7001) and applicable state electronic-transactions laws (UETA). You may view or print the full text of these Terms at any time from within the software and in the project repository.
+1.3 Acceptance record. When you accept, the software stores a record on your own device containing the version of the Terms accepted, a fingerprint (hash) of the exact text, the date and time of acceptance, and confirmation that each section screen was scrolled and checked. Nothing in that record is transmitted to us; we operate no accounts and collect no telemetry.
+1.4 Eligibility. You must be at least 18 years old, or the age of legal majority where you live, or a parent or legal guardian must complete the acceptance on your behalf and accept responsibility for your use.
+1.5 Fallback. The acceptance process is the only authorized way to agree to these Terms. If you somehow access or use the software without completing it, you agree that your use constitutes acceptance of these Terms to the fullest extent permitted by law.
+
+2. The software and its license
+2.1 License grant. Subject to these Terms and to the open-source license that accompanies the software (the "License"), we grant you a personal, non-exclusive license to install and use WovenCut for lawful purposes.
+2.2 The License controls the code. WovenCut's source code is distributed under its open-source License. Nothing in these Terms limits, conditions, or removes any right the License grants you in the code. If anything in these Terms conflicts with the License as it applies to the code, the License controls. These Terms govern your use of the distributed application, its name and branding, and the features described in §§7–9.
+2.3 Ownership. The software and its branding remain the property of the Authors and their licensors. These Terms transfer no ownership to you.
+
+3. Free software — what "free" means
+WovenCut is provided free of charge, as a community resource for people who cannot afford commercial editing software. You pay nothing for it, and we receive nothing from your use of it. That fact is part of the bargain reflected in §§4–6: because the software is free and provided as-is, the risk of using it rests with you, as set out below to the maximum extent the law allows.
+
+Beta status. The first public releases of WovenCut are beta test versions, and they are labeled as such in the software, its installer, its About screen, and its release pages. Beta software is unfinished by definition: it may contain defects, lose or corrupt project files, or change without notice. By using a beta version you acknowledge its beta status and accept the additional risk that comes with testing unfinished software. Keep backup copies of anything you make with it.
+
+4. Disclaimer of warranties
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITH ALL FAULTS AND WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHORS EXPRESSLY DISCLAIM ALL WARRANTIES AND CONDITIONS, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY, ANY IMPLIED WARRANTY OF FITNESS FOR A PARTICULAR PURPOSE, ANY WARRANTY OF TITLE OR NON-INFRINGEMENT, AND ANY WARRANTY ARISING FROM COURSE OF DEALING OR USAGE OF TRADE. THE AUTHORS DO NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE, UNINTERRUPTED, SECURE, OR COMPATIBLE WITH YOUR SYSTEM; THAT IT WILL NOT LOSE, CORRUPT, OR FAIL TO SAVE YOUR FILES OR PROJECTS; OR THAT ANY OUTPUT IT PRODUCES WILL BE ACCEPTED BY ANY PLATFORM. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES, SO SOME OF THE ABOVE DISCLAIMERS MAY NOT APPLY TO YOU; IN THAT CASE OUR DISCLAIMERS APPLY TO THE FULLEST EXTENT PERMITTED.
+
+5. Limitation of liability
+5.1 Excluded damages. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL THE AUTHORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, GOODWILL, DATA, FILES, OR CONTENT, ARISING OUT OF OR RELATING TO THE SOFTWARE OR THESE TERMS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+5.2 Cap. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHORS' TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THE SOFTWARE OR THESE TERMS WILL NOT EXCEED ONE HUNDRED U.S. DOLLARS (US $100). THE SOFTWARE IS FREE; THIS CAP IS PART OF THE BARGAIN.
+5.3 Carve-outs. Nothing in these Terms limits or excludes liability that cannot lawfully be limited or excluded, including liability for fraud or willful misconduct, or liability that California Civil Code § 1668 or any similar law makes non-waivable. If any part of this §5 is held unenforceable, it applies to the fullest enforceable extent and the remainder continues in effect.
+
+6. Your content is your responsibility
+6.1 You are solely responsible for the media you import, edit, and publish with WovenCut, and for the consequences of publishing it.
+6.2 You represent that you own, or have all rights and permissions needed for, the footage, music, images, voices, likenesses, and logos you use, and that your use complies with copyright, trademark, privacy, publicity, and any other applicable law, and with the rules of any platform you publish to.
+6.3 You agree not to use WovenCut to infringe anyone's rights, to violate any law, or to circumvent technological measures that control access to or copying of protected works.
+6.4 WovenCut is a tool only. We do not host, review, monitor, or endorse your content, and we have no duty to police what you create with it.
+
+7. The "Hide a Logo" tool — a convenience, not a guarantee
+7.1 The logo-obscuring feature is designed to make logos unrecognizable to the human eye. It is a creative and practical convenience only.
+7.2 It is not legal advice, and it does not guarantee that any video complies with trademark, copyright, or platform rules, that obscuring any particular logo is sufficient or necessary, or that any platform or rights holder will treat an obscured video as non-infringing.
+7.3 Whether and how to obscure content, and whether to publish, is your decision and your responsibility.
+
+8. The logo-overlay tool and your marks
+If you overlay your own logo or branding, you warrant that it is yours to use. You agree not to use the overlay or tracking tools to imitate another party's branding, to pass off your work as another's, or to mislead viewers.
+
+9. Optional third-party services
+9.1 Some features can connect to third-party services (for example, your own Muse or Replicate accounts). Those features work only with accounts you create and control.
+9.2 Your credentials stay yours: you enter them, they are used only to make the requests you direct, and your relationship with each provider is governed by that provider's own terms and privacy policy. Any charges those providers impose are yours alone.
+9.3 We do not provide, operate, or control those services, are not affiliated with or endorsed by their providers, and are not responsible for their availability, output, pricing, or conduct. References to third-party names are for identification only; all trademarks belong to their owners.
+
+10. Acceptable use; export compliance
+10.1 You agree to use WovenCut only for lawful purposes and in compliance with all applicable laws.
+10.2 You agree to comply with U.S. export-control and sanctions laws, and not to use, export, or re-export the software in violation of them, including to any sanctioned country or to any person on a U.S. government restricted-party list.
+
+11. No support; changes to the software
+WovenCut is a freeware experiment offered without any promise of updates, bug fixes, features, or support. We may change, suspend, or discontinue it at any time, with or without notice, and we have no obligation to maintain compatibility with any project file, format, or third-party service.
+
+12. Changes to these Terms
+These Terms carry a version identifier. If a future version of the software ships with updated Terms, the acceptance process in §1 will run again in full — every screen scrolled and checked — before the updated software may be used. The version you accepted is identified in your acceptance record, and earlier versions remain available in the project repository.
+
+13. Termination
+13.1 You may terminate this agreement at any time by ceasing to use the software and deleting your copies, subject to your rights under the License in the source code itself.
+13.2 If you breach these Terms, your permission to use the distributed application ends automatically; you must stop using it and delete your copies.
+13.3 §§3–9, 14, and 15–17 survive termination.
+
+14. Indemnification
+To the maximum extent permitted by law, you agree to indemnify, defend, and hold harmless the Authors and distributors from and against any third-party claims, damages, losses, and reasonable legal expenses arising out of or relating to (a) your use of the software, (b) content you create or publish with it, or (c) your violation of these Terms or of any law or third-party right.
+
+15. Dispute resolution — binding arbitration; class and jury waivers
+Please read this section carefully. It affects your rights. It is presented on its own screen during acceptance, separately from every other section.
+
+15.1 Informal resolution first. Before starting any arbitration or court proceeding, you and we agree to try to resolve the dispute informally: the complaining party will send a written notice describing the dispute and the relief sought to the other party (for us, to [CONTACT]), and the parties will attempt in good faith to resolve it within 45 days. If they cannot, either party may proceed under §15.2.
+
+15.2 Binding individual arbitration. Any dispute, claim, or controversy arising out of or relating to the software or these Terms that is not resolved under §15.1 will be resolved exclusively by binding arbitration on an individual basis, administered by the American Arbitration Association (AAA) under its Consumer Arbitration Rules, rather than in court. The arbitration will take place in San Diego County, California, unless the arbitrator orders a documents-only, telephone, or video hearing. The arbitrator's award is final and binding, and judgment on it may be entered in any court of competent jurisdiction. This §15 is governed by the Federal Arbitration Act.
+
+15.3 Waivers. YOU AND WE EACH WAIVE ANY RIGHT TO A JURY TRIAL, AND ANY RIGHT TO PARTICIPATE IN A CLASS ACTION, CLASS ARBITRATION, COLLECTIVE ACTION, OR REPRESENTATIVE PROCEEDING (INCLUDING AS A PRIVATE ATTORNEY GENERAL), TO THE FULLEST EXTENT PERMITTED BY LAW. CLAIMS MAY BE BROUGHT ONLY IN YOUR OR OUR INDIVIDUAL CAPACITY.
+
+15.4 Fees. Each side bears its own attorneys' fees unless the arbitrator orders otherwise. If the filing or administrative fees of arbitration would exceed the filing fee for bringing the same claim in court, we will pay the difference.
+
+15.5 Exceptions. Either party may bring an individual claim in small claims court if it qualifies. Nothing in this §15 prevents either party from seeking injunctive or other provisional relief from a court for misuse of intellectual property, and nothing in this §15 waives any right to seek public injunctive relief that cannot lawfully be waived; a claim for such relief, if any, will be decided by a court and stayed pending arbitration of the individual claims to the extent required by law.
+
+15.6 Severability of this section. If any part of this §15 is held unenforceable, the rest of §15 remains in effect, except that if the class-action waiver in §15.3 is held unenforceable as to a claim, that claim — and only that claim — will proceed in court under §16.
+
+15.7 Opting out of arbitration — and what it means. You may opt out of this §15 (arbitration and the waivers in §15.3) by sending written notice to [CONTACT] within 30 days of the date you first accepted the version of these Terms that contains this §15.7. Your notice must state your name and that you opt out of arbitration. Read this part carefully before you decide: the license in §2.1 is granted only under these Terms as a whole, including this §15. If you opt out, your permission to use the distributed WovenCut application ends — the software will not run for you, and you must stop using it and delete your copies. Opting out does not affect your rights, if any, in the source code under its open-source License (§2.2), and §§3–6 and 14 continue to apply to your past use. If you opt out and we later resolve a dispute with you, it will be resolved in court under §16. We state this consequence openly, here, before you accept — not in fine print — because the bargain is all-or-nothing: the software is free, and these Terms are its only price.
+
+16. Governing law and venue
+These Terms are governed by the laws of the State of California, without regard to its conflict-of-law rules. For any dispute not subject to arbitration under §15, the state and federal courts located in San Diego County, California are the exclusive venue, and you consent to their personal jurisdiction.
+
+17. General provisions
+17.1 Severability with reformation. If any provision of these Terms is held unenforceable, it will be reformed to the minimum extent necessary to make it enforceable, or, if that is not possible, severed, and the remaining provisions will continue in full effect.
+17.2 Entire agreement. These Terms, together with the License, are the entire agreement between you and us regarding the distributed application, and supersede any earlier or contemporaneous understandings about it.
+17.3 No waiver. Our failure to enforce any provision is not a waiver of it or of any other provision.
+17.4 Assignment. You may not assign these Terms or your rights under them. We may assign them in connection with a transfer of the project.
+17.5 Headings. Headings are for readability only and do not affect interpretation.
+17.6 Notices. Notices to us under these Terms must be sent to [CONTACT]. We may give you notice through the software, the project repository, or release notes.
+17.7 No third-party beneficiaries. Except as stated in §§5 and 14, there are no third-party beneficiaries of these Terms.
+
+---

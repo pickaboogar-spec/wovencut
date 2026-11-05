@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WovenCut (working title) — a truly free video editor</title>
+<title>WovenCut (working title) — a truly free video editor — Beta</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -74,6 +74,9 @@
     <button type="button" class="tool-btn" id="btn-shortcuts"
       title="See the keyboard shortcuts — the keys that make editing fast">
       <span class="ico">⌨️</span> Shortcuts</button>
+    <button type="button" class="tool-btn push-right" id="btn-about"
+      title="About WovenCut — who made it, and how to donate a dollar or two if it helped you (always optional, never required)">
+      <span class="ico">ℹ️</span> About</button>
   </nav>
 </header>
 
@@ -170,10 +173,70 @@
 </section>
 
 <footer>
-  <p>Beta build — Phase 1 desktop editor with the professional-upgrade batch
-     (Nov 5 2026). Free forever — see README.md and WORKFLOW.md.
-     Your files never leave this computer.</p>
+  <p>Beta build — a truly free video editor. Free forever — see README.md
+     and WORKFLOW.md. Your files never leave this computer.
+     <button type="button" class="tool-btn" id="btn-terms"
+       title="Read the full Terms of Use inside the app — the same screens you agreed to when WovenCut first opened">📜 Terms of Use</button></p>
 </footer>
+
+<!-- Terms of Use gate (pro pass 2 legal audit): the editor cannot be
+     used until the Terms are accepted — per-section scrollwrap, §15
+     alone on Screen 10, Decline closes the app. Spec:
+     TERMS-OF-USE-DRAFT.md "Acceptance gate". Driven by js/terms.js. -->
+<div id="terms-gate" class="terms-gate" hidden>
+  <div class="terms-card">
+    <header class="terms-head">
+      <h2>📜 WovenCut <span class="beta-tag">Beta</span> — Terms of Use</h2>
+      <p class="terms-step" id="terms-step">Screen 1 of 11</p>
+    </header>
+    <h3 id="terms-screen-title"></h3>
+    <div class="terms-body" id="terms-body" tabindex="0"></div>
+    <p class="terms-scroll-hint" id="terms-scroll-hint"></p>
+    <label class="terms-check" id="terms-check-row">
+      <input type="checkbox" id="terms-checkbox" disabled>
+      <span id="terms-checkbox-label">I have read and understand this section</span>
+    </label>
+    <div class="terms-nav">
+      <button type="button" class="tool-btn danger" id="terms-decline"
+        title="Decline the Terms — WovenCut closes. You can reopen it and read the Terms again any time.">🚪 Decline — Close WovenCut</button>
+      <span class="terms-spacer"></span>
+      <button type="button" class="tool-btn" id="terms-close" hidden
+        title="Close this reading copy and go back to editing">✖️ Close</button>
+      <button type="button" class="tool-btn" id="terms-back"
+        title="Go back one screen to re-read it">⬅️ Back</button>
+      <button type="button" class="tool-btn primary" id="terms-next" disabled
+        title="Go to the next screen — unlocks when this screen's checkbox is checked">Next ➡️</button>
+      <button type="button" class="tool-btn primary" id="terms-agree" hidden disabled
+        title="Agree to the Terms and open WovenCut — unlocks when every screen's checkbox is checked">✅ I Agree</button>
+    </div>
+  </div>
+</div>
+<div id="terms-closed" class="terms-gate" hidden>
+  <div class="terms-card terms-closed-card">
+    <h2>🚪 WovenCut is closed</h2>
+    <p>You declined the Terms of Use, so WovenCut has closed — that's how
+       the Terms work: no agreement, no editor. Nothing was changed on
+       your computer. Reopen WovenCut (or reload this page) whenever
+       you'd like to read the Terms again.</p>
+  </div>
+</div>
+
+<!-- About + Donate (Paul, Nov 4 2026): who made this, plus a quiet,
+     strictly-voluntary donate section. Driven by js/about.js. -->
+<div id="about-modal" class="terms-gate" hidden>
+  <div class="terms-card about-card">
+    <header class="terms-head">
+      <h2>ℹ️ About WovenCut <span class="beta-tag">Beta</span></h2>
+      <p class="terms-step" id="about-version"></p>
+    </header>
+    <div class="about-body" id="about-body"></div>
+    <div class="terms-nav">
+      <span class="terms-spacer"></span>
+      <button type="button" class="tool-btn" id="about-close"
+        title="Close About and go back to editing">✖️ Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- Browser fallback pickers (used only when the desktop shell is absent) -->
 <input type="file" id="file-import" multiple hidden

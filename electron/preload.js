@@ -47,4 +47,11 @@ contextBridge.exposeInMainWorld("wovencut", {
     ipcRenderer.removeAllListeners("export:progress");
     ipcRenderer.on("export:progress", (_event, data) => cb(data));
   },
+
+  // Terms gate (pro pass 2 legal audit): declining the Terms closes the
+  // app — the main process owns quitting; the renderer just asks.
+  declineTerms: () => ipcRenderer.invoke("terms:decline"),
+  // Open an https link in the user's real browser (the Donate page).
+  // The main process refuses anything that isn't https.
+  openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),
 });

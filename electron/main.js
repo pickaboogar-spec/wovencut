@@ -45,7 +45,7 @@ function createWindow() {
     minWidth: 1080,
     minHeight: 700,
     backgroundColor: "#17181c", // editor-dark; no white flash on open
-    title: "WovenCut (working title) — free video editor",
+    title: "WovenCut (working title) — free video editor — Beta",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -225,6 +225,22 @@ function registerIpc() {
   }
 
   let currentRender = null;
+  // Terms gate (pro pass 2 legal audit): "Decline" closes the app —
+  // Paul's hard requirement; the renderer cannot quit itself.
+  ipcMain.handle("terms:decline", async () => {
+    app.quit();
+    return true;
+  });
+  // External links (the Donate page): https only, opened in the user's
+  // real browser — never navigated inside the app window.
+  ipcMain.handle("shell:openExternal", async (_event, url) => {
+    if (typeof url === "string" && url.startsWith("https://")) {
+      await shell.openExternal(url);
+      return true;
+    }
+    return false;
+  });
+
   ipcMain.handle("export:cancel", async () => {
     if (currentRender) {
       currentRender.__cancelled = true;

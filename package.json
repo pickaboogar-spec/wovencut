@@ -11,12 +11,14 @@
       "js/**",
       "css/**",
       "index.html",
-      "package.json"
+      "package.json",
+      "assets/**"
     ],
     "nsis": {
       "allowToChangeInstallationDirectory": true,
       "oneClick": false,
-      "shortcutName": "WovenCut"
+      "shortcutName": "WovenCut",
+      "license": "license.txt"
     },
     "productName": "WovenCut",
     "win": {

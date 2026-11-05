@@ -26,8 +26,20 @@ import {
   addSnapshot, clearAutosave, formatWhen, mountAutosavePanel, readAutosave,
   safeStorage, writeAutosave,
 } from "./autosave.js";
+import { initTermsGate } from "./terms.js";
+import { initAbout } from "./about.js";
 
 const desktop = window.wovencut?.isDesktop ? window.wovencut : null;
+
+// Terms of Use gate + About/Donate (pro pass 2 legal audit): the gate
+// runs before the editor can be used whenever acceptance isn't current
+// (Paul's hard requirement, Nov 4 2026); the footer button reopens the
+// Terms as a reading copy at any time (§1.2).
+const termsGate = initTermsGate();
+initAbout();
+document.getElementById("btn-terms")?.addEventListener("click", () => {
+  termsGate.openView();
+});
 
 // Auto-save & crash recovery (pro pass 2): if the last session left work
 // in progress, we open WITH it and say so in the recovery banner — the
@@ -752,6 +764,9 @@ function setPlayButtonLabel() {
 }
 
 document.addEventListener("keydown", (e) => {
+  // While the Terms gate is up, the editor is unreachable — no editor
+  // shortcut may act behind it (the gate's own controls are native).
+  if (termsGate.isBlocking()) return;
   const tag = document.activeElement?.tagName || "";
   const typing = /INPUT|TEXTAREA|SELECT/.test(tag) ||
     document.activeElement?.isContentEditable;

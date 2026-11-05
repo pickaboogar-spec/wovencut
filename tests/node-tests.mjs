@@ -277,4 +277,44 @@ import { buildRenderArgs } from "../js/render.js";
   assert.ok(mp.laneState && mp.laneState.muted.main === false);
 }
 
+// --- Legal audit (pro pass 2): Terms gate data + acceptance record -------------
+import {
+  TERMS_SCREENS, TERMS_VERSION, fingerprintText, isAcceptanceCurrent,
+  readAcceptance, recordAcceptance, termsFingerprint,
+} from "../js/terms.js";
+{
+  assert.equal(TERMS_SCREENS.length, 11, "the gate has exactly 11 screens");
+  assert.equal(TERMS_VERSION, "v2");
+  // Screen 10 is §15 ALONE (Paul's direction): arbitration + the §15.7
+  // opt-out and its lock consequence, and nothing from §16/§17.
+  const s10 = TERMS_SCREENS[9];
+  assert.ok(s10.body.includes("15.7") && s10.body.includes("opt out"));
+  assert.ok(s10.body.includes("permission to use the distributed WovenCut application ends"));
+  assert.ok(!s10.body.includes("Governing law"), "§16 must not share the arbitration screen");
+  // Screen 11 carries §16 + §17; every [CONTACT] placeholder is still a
+  // placeholder in the draft (release blocker, tracked in the checklist).
+  assert.ok(TERMS_SCREENS[10].body.includes("Governing law"));
+  assert.ok(TERMS_SCREENS.map((s) => s.body).join("").includes("[CONTACT]"));
+  // Fingerprint: stable, and any wording change re-triggers the gate.
+  assert.equal(fingerprintText("abc"), fingerprintText("abc"));
+  assert.notEqual(fingerprintText("abc"), fingerprintText("abd"));
+  // Acceptance record round-trip + change detection (§1.3, §12).
+  const store = new Map();
+  const fake = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, v),
+    removeItem: (k) => store.delete(k),
+  };
+  assert.equal(isAcceptanceCurrent(fake), false);
+  recordAcceptance(fake, new Array(11).fill(true), new Date("2026-11-05T12:00:00Z"));
+  assert.equal(isAcceptanceCurrent(fake), true);
+  const rec = readAcceptance(fake);
+  assert.equal(rec.version, "v2");
+  assert.equal(rec.hash, termsFingerprint());
+  assert.equal(rec.screens.length, 11);
+  rec.hash = "deadbeef";
+  store.set("wovencut.terms-acceptance.v1", JSON.stringify(rec));
+  assert.equal(isAcceptanceCurrent(fake), false, "a changed text fingerprint re-runs the gate");
+}
+
 console.log("ALL NODE TESTS PASSED");
