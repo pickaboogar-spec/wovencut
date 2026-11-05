@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import {
-  emptyProject, sampleProject, migrateProject, formatTimecode, formatClock,
+  emptyProject, sampleProject, migrateProject, formatTimecode, formatClock, newMainItem,
   projectDuration,
 } from "../js/model.js";
 import { History } from "../js/history.js";
@@ -159,5 +159,36 @@ assert.equal(mig3.captionMode, "burn");
 assert.equal(mig3.music.duck, false);
 assert.equal(mig3.music.duckAmount, 0.6);
 assert.equal(mig3.music.volume, 0.5); // user's own value survives
+
+// --- Pro pass 2: music ducking model ------------------------------------------
+import {
+  mainLevelAt, musicVolumeTargetAt, duckEnvelope, DUCK_THRESHOLD,
+} from "../js/music.js";
+
+const dk = emptyProject("dk");
+dk.tracks.main = [
+  { ...newMainItem({ label: "loud", duration: 10 }), peaks: Array(160).fill(0.9) },
+  { ...newMainItem({ label: "quiet", duration: 10 }), peaks: Array(160).fill(0.01) },
+  { ...newMainItem({ label: "unknown", duration: 10 }) }, // no peaks decoded
+];
+dk.music = { src: "bed.mp3", volume: 0.8, duck: true, duckAmount: 0.6 };
+assert.equal(mainLevelAt(dk, 5), 0.9);
+assert.equal(mainLevelAt(dk, 15), 0.01);
+assert.equal(mainLevelAt(dk, 25), null); // no waveform → unknown, honestly
+assert.ok(DUCK_THRESHOLD < 0.9);
+assert.equal(musicVolumeTargetAt(dk, 5), 0.8 * 0.4); // dips under loud clip
+assert.equal(musicVolumeTargetAt(dk, 15), 0.8);      // quiet clip: no dip
+assert.equal(musicVolumeTargetAt(dk, 25), 0.8);      // unknown: no fake dip
+dk.music.duck = false;
+assert.equal(musicVolumeTargetAt(dk, 5), 0.8);       // off means off
+dk.music.duck = true;
+const env = duckEnvelope(dk, 60);
+assert.equal(env.length, 61);
+assert.ok(env[10].v < 0.5, "envelope is ducked mid loud clip (t=5s)");
+assert.ok(env[59].v > 0.7, "envelope recovers over the unknown clip");
+assert.match(planExport(dk).ducking, /sidechaincompress/);
+assert.match(buildFfmpegArgs(dk, "o.mp4").join(" "), /sidechaincompress=threshold=0\.02:ratio=3/);
+dk.music.duck = false;
+assert.doesNotMatch(buildFfmpegArgs(dk, "o.mp4").join(" "), /sidechaincompress/);
 
 console.log("ALL NODE TESTS PASSED");

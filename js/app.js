@@ -403,16 +403,35 @@ function renderInspector() {
         <input type="range" id="f-volume" min="0" max="100" step="1"
           value="${Math.round((p.music?.volume ?? 0.8) * 100)}">
       </label>
+      <label class="insp-field" title="Ducking dips the music automatically while your clips are making sound, so speech stays clear on top of it — then brings it back up in the quiet gaps. The dip follows your clips' real decoded waveforms, the curve is drawn on the music block on the timeline, and the export applies it with a sidechain compressor listening to the real audio.">
+        <span class="insp-label">🦆 Ducking — dip the music under speech</span>
+        <span><input type="checkbox" id="f-duck" ${p.music?.duck ? "checked" : ""}> Dip the music while the main track is loud</span>
+      </label>
+      <label class="insp-field" title="How far the music dips while the main track is loud. 60% means the music falls to 40% of its set volume under speech.">
+        <span class="insp-label">🎚️ Dip strength — <span id="duck-readout">${Math.round((p.music?.duckAmount ?? 0.6) * 100)}%</span></span>
+        <input type="range" id="f-duckamt" min="0" max="90" step="5"
+          value="${Math.round((p.music?.duckAmount ?? 0.6) * 100)}">
+      </label>
       <div class="insp-actions">
         <button type="button" class="tool-btn danger" data-act="delete"
           title="Remove the music bed">🗑️ Remove Music</button>
       </div>
-      <p class="stub-note">Playback sync with the preview arrives in Phase 3.</p>`;
+      <p class="stub-note">Playback sync with the preview arrives in Phase 3. Ducking is modelled and drawn now, and applied by the render.</p>`;
     inspectorBody.querySelector("#f-volume").addEventListener("input", (e) => {
       p.music.volume = +e.target.value / 100;
       inspectorBody.querySelector("#vol-readout").textContent = `${e.target.value}%`;
     });
     inspectorBody.querySelector("#f-volume").addEventListener("change", refresh);
+    inspectorBody.querySelector("#f-duck").addEventListener("change", (e) => {
+      p.music.duck = e.target.checked;
+      refresh();
+    });
+    inspectorBody.querySelector("#f-duckamt").addEventListener("input", (e) => {
+      p.music.duckAmount = +e.target.value / 100;
+      inspectorBody.querySelector("#duck-readout").textContent = `${e.target.value}%`;
+      timeline.render(); // the duck curve on the music block follows live
+    });
+    inspectorBody.querySelector("#f-duckamt").addEventListener("change", refresh);
     wireInspectorActions(lane, id);
   }
 }

@@ -79,6 +79,14 @@ export function planExport(project) {
       ? "normalise to −14 LUFS, true peak −1 dB (FFmpeg loudnorm on the final audio mix, at render time)"
       : "off — audio renders at its recorded level",
     music: project.music?.src || "none chosen",
+    // Ducking (pro pass 2): the render ducks with sidechaincompress,
+    // keyed by the main track's real audio — the model's strength slider
+    // maps to the compressor ratio.
+    ducking: !project.music?.src
+      ? "no music bed"
+      : project.music.duck
+        ? `ON — music dips to ${Math.round((1 - (project.music.duckAmount ?? 0.6)) * 100)}% under the main track's sound (sidechaincompress at render time)`
+        : "off — music holds its set volume throughout",
   };
 }
 
@@ -177,6 +185,17 @@ export function buildFfmpegArgs(project, outputPath = "wovencut-export.mp4") {
 
   if (project.music?.src) {
     args.push("-i", project.music.src); // mixed under picture at project volume
+    if (project.music.duck) {
+      // Ducking at render: the music is compressed by a sidechain fed
+      // from the main track's mixed audio. Strength (fraction removed)
+      // maps to a compressor ratio of 1/(1−strength): 0.6 → 2.5 ≈ 3:1.
+      const amt = project.music.duckAmount ?? 0.6;
+      const ratio = Math.max(2, Math.round(1 / Math.max(0.05, 1 - amt)));
+      filters.push(
+        `# music ducking: [music]volume=${project.music.volume ?? 0.8},sidechaincompress=` +
+        `threshold=0.02:ratio=${ratio}:attack=20:release=300 keyed by the main audio mix`
+      );
+    }
   }
 
   // Output spec from the chosen export preset (or the project settings).
@@ -385,7 +404,7 @@ export function mountExportPanel(project, container, hooks = {}) {
     `First frame: ${plan.firstFrame}.<br>` +
     `Clips: ${plan.clips} · Layer items: ${plan.overlays} · Background items: ${plan.background} · ` +
     `Green-screen clips: ${plan.keyedClips} · ` +
-    `Length: ${plan.durationSeconds}s · Music: ${plan.music}</p>` +
+    `Length: ${plan.durationSeconds}s · Music: ${plan.music} · Ducking: ${plan.ducking}</p>` +
     `<button type="button" class="tool-btn" data-action="run-export"` +
     ` title="Ask the desktop shell to run the export pipeline (stub in this phase — it returns the full FFmpeg plan and renders nothing)">` +
     `📤 Run export (stub)</button>` +

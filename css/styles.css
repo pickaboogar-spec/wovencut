@@ -230,6 +230,13 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 .tl-wave path { stroke: #cfe8d6; stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
 .tl-music-block .tl-wave { height: 16px; }
 .tl-music-block .tl-wave path { stroke: #e6cdf0; }
+/* Duck curve on the music block (pro pass 2): a gold line that visibly
+   drops where the music will dip under the main track's sound. */
+.tl-duck {
+  position: absolute; left: 3px; right: 3px; bottom: 2px;
+  width: calc(100% - 6px); height: 16px; pointer-events: none;
+}
+.tl-duck polyline { stroke: #f2c14e; stroke-width: 1.6; fill: none; vector-effect: non-scaling-stroke; }
 .tl-block.has-wave { padding-bottom: 17px; }
 .rate-readout { color: var(--gold); font-weight: 700; min-width: 90px; }
 

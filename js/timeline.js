@@ -31,6 +31,7 @@ import {
   newMainItem, newOverlayItem, projectDuration, syncLockedItems, transitionById, uid,
 } from "./model.js";
 import { peaksFromBytes, peaksFromFile, waveformSvg } from "./waveform.js";
+import { duckEnvelopeSvg } from "./music.js";
 
 // Lane ids: "main" | "layer:<n>" (n = 0 is the lane just above main;
 // higher n stacks higher) | "background" | "caption" | "music".
@@ -449,12 +450,13 @@ export class TimelineEditor {
       <div class="tl-block tl-music-block ${project.music.peaks ? "has-wave" : ""} ${sel?.lane === "music" ? "selected" : ""}"
            data-lane="music" data-id="music"
            style="width:${Math.max(120, total * pps)}px"
-           title="Music bed: ${escapeHtml(baseName(project.music.src))} at ${Math.round(project.music.volume * 100)}% volume. Click to select; volume lives in the inspector.">
+           title="Music bed: ${escapeHtml(baseName(project.music.src))} at ${Math.round(project.music.volume * 100)}% volume${project.music.duck ? `, ducking ON — the gold curve shows where it will dip under the main track's sound` : ""}. Click to select; volume and ducking live in the inspector.">
         <span class="tl-block-icon">🎵</span>
         <span class="tl-label">${escapeHtml(baseName(project.music.src))}</span>
         <button type="button" class="tl-del" data-del="music" data-lane="music"
           title="Remove the music bed">✕</button>
         ${waveformSvg(project.music.peaks)}
+        ${duckEnvelopeSvg(project)}
       </div>` : `
       <div class="tl-empty">Drop an audio file here, or use the 🎵 Add Music button.</div>`;
 
