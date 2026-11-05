@@ -176,3 +176,14 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 /* Layer stack controls + background blocks (v3 layered timeline) */
 .tl-tools { display: flex; gap: 8px; padding: 6px 0 6px 104px; }
 .tl-block.tl-bg { border-style: dashed; }
+
+/* Reaction recorder panel */
+.panel-wide { grid-column: 1 / -1; }
+.reaction-stage { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin: 10px 0; }
+.reaction-stage figure { margin: 0; }
+.reaction-video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; }
+.reaction-stage figcaption { margin-top: 6px; font-size: 14px; opacity: 0.85; }
+.reaction-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.reaction-pick { cursor: pointer; }
+.reaction-status { margin-top: 10px; font-size: 15px; }
+.tool-btn:disabled { opacity: 0.45; cursor: not-allowed; }

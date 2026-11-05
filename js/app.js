@@ -19,6 +19,7 @@ import { mountMusicPanel } from "./music.js";
 import { mountExportPanel } from "./export.js";
 import { mountReplicatePanel } from "./replicate.js";
 import { mountClaudePanel } from "./muse.js";
+import { mountReactionPanel } from "./reaction.js";
 
 const desktop = window.wovencut?.isDesktop ? window.wovencut : null;
 
@@ -508,6 +509,10 @@ $("btn-export").addEventListener("click", () => {
     .scrollIntoView({ behavior: "smooth", block: "center" });
   document.querySelector('#panel-export [data-action="run-export"]')?.click();
 });
+$("btn-record").addEventListener("click", () => {
+  document.getElementById("panel-reaction-wrap")
+    .scrollIntoView({ behavior: "smooth", block: "center" });
+});
 $("btn-segue").addEventListener("click", () => {
   document.getElementById("panel-replicate-wrap")
     .scrollIntoView({ behavior: "smooth", block: "center" });
@@ -526,6 +531,18 @@ document.addEventListener("keydown", (e) => {
 
 mountPanels();
 renderInspector();
+
+// The reaction recorder mounts ONCE (not in mountPanels): it holds live
+// camera/recorder state that a refresh must never wipe mid-take.
+mountReactionPanel(document.getElementById("panel-reaction"), {
+  getProject: () => project,
+  desktop,
+  onPairCreated: (sel) => {
+    selection = sel;
+    timeline.selection = sel;
+    refresh();
+  },
+});
 
 function escapeHtml(s = "") {
   return String(s).replace(/[&<>"']/g, (ch) => ({

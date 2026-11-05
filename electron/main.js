@@ -12,7 +12,7 @@
 // PRIVACY POSTURE (unchanged from the skeleton): no telemetry, no network
 // calls, no accounts, no analytics. Nothing in this process phones home.
 
-import { app, BrowserWindow, dialog, ipcMain, net, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -112,6 +112,19 @@ function registerIpc() {
     return res.filePath;
   });
 
+  // Reaction recorder: save a webcam take (webm bytes from the renderer)
+  // wherever the user chooses. The take stays on this machine.
+  ipcMain.handle("dialog:saveRecording", async (_event, arrayBuffer, defaultName) => {
+    const res = await dialog.showSaveDialog({
+      title: "Save your reaction take",
+      defaultPath: defaultName || "reaction-take.webm",
+      filters: [{ name: "WebM video", extensions: ["webm"] }],
+    });
+    if (res.canceled) return null;
+    await fs.promises.writeFile(res.filePath, Buffer.from(arrayBuffer));
+    return res.filePath;
+  });
+
   ipcMain.handle("dialog:saveVideo", async (_event, defaultName) => {
     const res = await dialog.showSaveDialog({
       title: "Export video",
@@ -150,6 +163,11 @@ function registerIpc() {
 }
 
 app.whenReady().then(() => {
+  // The reaction recorder needs the webcam + microphone. Grant media
+  // permission to the app's own window only; deny everything else.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
+    cb(permission === "media");
+  });
   protocol.handle("app", (request) => {
     const url = new URL(request.url);
     const filePath = path.join(APP_ROOT, decodeURIComponent(url.pathname));
