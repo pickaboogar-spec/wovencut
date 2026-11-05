@@ -23,3 +23,9 @@
 ## Suggested-donation copy (Paul's model)
 - Suggested $1–$2, never required. Wording for About > Donate:
   "WovenCut is free, for everybody. If it helped you and you have a dollar or two to spare, a donation helps Damonini and Pepper Software Development make more free software. If you don't have it — it's still yours, no strings."
+
+## UPDATE — Nov 4, 2026, ~8:29 PM PT: account converted
+- Paul's PayPal is now a BUSINESS account named "Damonini" (sole proprietorship). Paul entered the tax ID himself via browser takeover.
+- PayPal.me handle could NOT be changed (display-only): link stays https://paypal.me/PaulDBlanchard — the QR in assets/ is unchanged and still correct.
+- BUT the PayPal.me profile display name is now "Damonini" (San Diego, CA), so donors land on a page headed Damonini — the goal behind the handle request is effectively met.
+- Open item (Paul's call): PayPal placed a temporary feature block (ref PP-L-879715946258) asking for a photo ID upload + card confirmation before full fund access; nothing uploaded yet.
