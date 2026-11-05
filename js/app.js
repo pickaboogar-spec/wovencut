@@ -11,7 +11,7 @@ import {
   RULES, baseName, itemStartTimes, migrateProject, projectDuration,
   sampleProject, emptyProject,
 } from "./model.js";
-import { TimelineEditor, removeItem, splitMainItemAt } from "./timeline.js";
+import { TimelineEditor, layerIndex, removeItem, splitMainItemAt } from "./timeline.js";
 import { Preview } from "./preview.js";
 import { addCaption, mountCaptionsEditor, retimeCaption, setCaptionText } from "./captions.js";
 import { mountMusicPanel } from "./music.js";
@@ -126,6 +126,10 @@ function renderInspector() {
       </label>
       ${numField({ id: "f-transdur", icon: "⤨", label: "Crossfade length (seconds)",
         title: "How long the crossfade blend lasts (only used when Transition in = Crossfade)", value: it.transitionDuration })}
+      <label class="insp-field" title="Tick this when this clip was filmed in front of a green screen: the green is knocked out and the Background lane shows through behind the person. Layer lanes still draw on top.">
+        <span class="insp-label">🟩 Green screen</span>
+        <span><input type="checkbox" id="f-keygreen" ${it.keyGreen ? "checked" : ""}> This clip is green screen — show the background behind it</span>
+      </label>
       <div class="insp-actions">
         <button type="button" class="tool-btn" data-act="split"
           title="Split this clip into two at the playhead">✂️ Split at Playhead</button>
@@ -141,16 +145,21 @@ function renderInspector() {
       it.transitionIn = e.target.value;
       refresh();
     });
+    inspectorBody.querySelector("#f-keygreen").addEventListener("change", (e) => {
+      it.keyGreen = e.target.checked;
+      refresh();
+    });
     wireInspectorActions(lane, id);
     return;
   }
 
-  if (lane === "overlay") {
-    const o = p.tracks.overlay.find((x) => x.id === id);
+  if (lane === "overlay" || layerIndex(lane) >= 0) {
+    const li = lane === "overlay" ? 0 : layerIndex(lane);
+    const o = (p.tracks.layers[li] || []).find((x) => x.id === id);
     if (!o) return void (selection = null, renderInspector());
     inspectorBody.innerHTML = `
       <h3>🪟 ${escapeHtml(o.label)}</h3>
-      <p class="insp-meta">Picture-in-picture overlay — floats in a corner over the main video.</p>
+      <p class="insp-meta">Layer ${li + 1} item — floats in a corner over everything on the lanes below it (layer 1 sits just over the main video; higher layers draw on top).</p>
       ${numField({ id: "f-start", icon: "⏱️", label: "Starts at (seconds)",
         title: "When in the video this overlay appears", value: o.start })}
       ${numField({ id: "f-duration", icon: "⏱️", label: "Stays for (seconds)",
@@ -168,7 +177,7 @@ function renderInspector() {
       </label>
       <div class="insp-actions">
         <button type="button" class="tool-btn danger" data-act="delete"
-          title="Remove this overlay from the timeline">🗑️ Delete Overlay</button>
+          title="Remove this item from its layer">🗑️ Delete Layer Item</button>
       </div>
       <p class="stub-note">Full compositing (real video inside the window) renders
         in the Phase 4 export via FFmpeg's overlay filter; the preview already
@@ -186,6 +195,26 @@ function renderInspector() {
       preview.draw(preview.currentTime());
     });
     size.addEventListener("change", refresh);
+    wireInspectorActions(lane, id);
+    return;
+  }
+
+  if (lane === "background") {
+    const b = p.tracks.background.find((x) => x.id === id);
+    if (!b) return void (selection = null, renderInspector());
+    inspectorBody.innerHTML = `
+      <h3>🌄 ${escapeHtml(b.label)}</h3>
+      <p class="insp-meta">Background — fills the whole frame BEHIND the main video. It shows through wherever a main clip is marked 🟩 green screen.</p>
+      ${numField({ id: "f-start", icon: "⏱️", label: "Starts at (seconds)",
+        title: "When this background appears", value: b.start })}
+      ${numField({ id: "f-duration", icon: "⏱️", label: "Stays for (seconds)",
+        title: "How long this background stays behind the video", value: b.duration })}
+      <div class="insp-actions">
+        <button type="button" class="tool-btn danger" data-act="delete"
+          title="Remove this background item">🗑️ Delete Background</button>
+      </div>`;
+    bindNum("f-start", (v) => { b.start = Math.max(0, v); });
+    bindNum("f-duration", (v) => { b.duration = Math.max(0.1, v); });
     wireInspectorActions(lane, id);
     return;
   }

@@ -16,9 +16,11 @@
 //     No black lead-in is ever generated.
 //   - Crossfades between neighbours become `xfade` at the boundary, using
 //     that item's transitionDuration. Cuts are plain concatenation joins.
-//   - PiP overlays become `overlay` filters: each overlay item is scaled
-//     to sizePct of the frame width and placed at its corner, enabled
-//     between its start and start+duration.
+//   - The layer stack composites back to front: background lane items
+//     full-frame under the main chain; main clips marked green screen
+//     get a `chromakey` filter so the background shows through; layer
+//     items become `overlay` filters scaled to sizePct of the frame
+//     width at their corner, enabled between start and start+duration.
 //   - Captions burn in via the subtitles filter, styled to match the
 //     preview (large type, dark backing band).
 //   - Music mixes under the picture at project volume.
@@ -26,11 +28,14 @@
 
 export function planExport(project) {
   const total = project.tracks.main.reduce((s, i) => s + i.duration, 0);
+  const layerCount = (project.tracks.layers || []).reduce((s, l) => s + l.length, 0);
   return {
     engine: "FFmpeg (desktop) — binary bundled in Phase 4 via ffmpeg-static; stub in Phase 1",
     output: "MP4 — H.264 + AAC, 1920×1080, rendered locally. Nothing is uploaded, ever.",
     clips: project.tracks.main.length,
-    overlays: project.tracks.overlay.length,
+    overlays: layerCount,
+    background: (project.tracks.background || []).length,
+    keyedClips: project.tracks.main.filter((i) => i.keyGreen).length,
     durationSeconds: total,
     firstFrame:
       "first clip at full strength from t=0 — its fade-in defaults to 0 (Paul's rule); " +
@@ -77,15 +82,36 @@ export function buildFfmpegArgs(project, outputPath = "wovencut-export.mp4") {
     }
   });
 
-  // PiP overlays → overlay filter at the chosen corner, time-gated.
+  // LAYERING (Paul, Nov 4 2026) — the composite stack, back to front:
+  // background lane → main video (green-screen clips keyed) → layer lanes.
+  // Background items are full-frame inputs composited UNDER the main
+  // chain; a main clip with keyGreen gets a `chromakey` filter so its
+  // green drops out and the background shows through.
+  (project.tracks.background || []).forEach((b, j) => {
+    const idx = main.length + j;
+    args.push("-i", b.src || `<bg:${b.label}>`);
+    filters.push(
+      `# background ${j + 1}: full-frame under main, ` +
+      `enable='between(t,${b.start},${b.start + b.duration})' (input ${idx})`
+    );
+  });
+  main.forEach((item, i) => {
+    if (item.keyGreen) {
+      filters.push(`# clip ${i + 1} is green screen: chromakey=0x00b140:0.18:0.08 before compositing over the background lane`);
+    }
+  });
+
+  // Layer lanes → overlay filters at the chosen corner, time-gated,
+  // flattened bottom lane first so higher layers composite last (on top).
   const cornerXY = {
     "top-left": "x=24:y=24",
     "top-right": "x=W-w-24:y=24",
     "bottom-left": "x=24:y=H-h-24",
     "bottom-right": "x=W-w-24:y=H-h-24",
   };
-  project.tracks.overlay.forEach((o, j) => {
-    const idx = main.length + j;
+  const flatLayers = (project.tracks.layers || []).flat();
+  flatLayers.forEach((o, j) => {
+    const idx = main.length + (project.tracks.background || []).length + j;
     args.push("-i", o.src || `<pip:${o.label}>`);
     filters.push(
       `[${idx}:v]scale=iw*${o.sizePct / 100}:ih*${o.sizePct / 100}[pip${j}]`,
@@ -115,7 +141,8 @@ export function mountExportPanel(project, container, hooks = {}) {
     `<p class="stub-note">Engine: ${plan.engine}.<br>` +
     `Output: ${plan.output}<br>` +
     `First frame: ${plan.firstFrame}.<br>` +
-    `Clips: ${plan.clips} · PiP overlays: ${plan.overlays} · ` +
+    `Clips: ${plan.clips} · Layer items: ${plan.overlays} · Background items: ${plan.background} · ` +
+    `Green-screen clips: ${plan.keyedClips} · ` +
     `Length: ${plan.durationSeconds}s · Music: ${plan.music}</p>` +
     `<button type="button" class="tool-btn" data-action="run-export"` +
     ` title="Ask the desktop shell to run the export pipeline (stub in this phase — it returns the full FFmpeg plan and renders nothing)">` +

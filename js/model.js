@@ -1,9 +1,16 @@
-// WovenCut (working title) — project data model (v2, Phase 1 desktop)
+// WovenCut (working title) — project data model (v3, layered timeline)
 // ---------------------------------------------------------------------------
+// LAYERING (Paul, Nov 4 2026): the timeline is a stack of layers, top to
+// bottom: any number of layer lanes → the main video → a background lane.
+// Things on a higher lane draw OVER what's below; the background lane sits
+// BEHIND the main video, which is where a green-screen shot lives: mark a
+// main clip "green screen" (keyGreen) and its green is knocked out so the
+// background shows through, while layer lanes put things on top.
+//
 // A project is plain JSON. Shape:
 //
 // {
-//   "version": 2,
+//   "version": 3,
 //   "title": "string",
 //   "tracks": {
 //     "main": [                       // picture track, in play order
@@ -19,19 +26,26 @@
 //         "fadeOut": 0,               // seconds
 //         "transitionIn": "cut",      // "cut" | "crossfade"
 //         "transitionDuration": 0.5,  // seconds, when transitionIn=crossfade
+//         "keyGreen": false,          // green-screen shot: knock out green
 //         "generated": true,          // segue items only: AI-generated
 //         "provider": "replicate"     // segue items only
 //       }
 //     ],
-//     "overlay": [                    // picture-in-picture lane (Phase 1)
-//       {
-//         "id": "p1", "kind": "pip",
-//         "src": null, "label": "…", "hue": 280,
-//         "start": 10,                // seconds on the main timeline
-//         "duration": 5,
-//         "corner": "bottom-right",   // top-left|top-right|bottom-left|bottom-right
-//         "sizePct": 28               // % of frame width
-//       }
+//     "layers": [                     // lanes ABOVE main, bottom lane first
+//       [                             // layer 1: just over the main video
+//         {
+//           "id": "p1", "kind": "pip",
+//           "src": null, "label": "…", "hue": 280,
+//           "start": 10,              // seconds on the main timeline
+//           "duration": 5,
+//           "corner": "bottom-right", // top-left|top-right|bottom-left|bottom-right
+//           "sizePct": 28             // % of frame width
+//         }
+//       ]
+//     ],
+//     "background": [                 // lane BEHIND main, full frame
+//       { "id": "b1", "kind": "bg", "src": null, "label": "…", "hue": 190,
+//         "start": 0, "duration": 15 }
 //     ]
 //   },
 //   "captions": [ { "id": "t1", "start": 0, "end": 4, "text": "..." } ],
@@ -100,10 +114,11 @@ export function newMainItem({ src = null, label = "", kind = "clip", duration = 
     fadeOut: RULES.DEFAULT_FADE_OUT_S,
     transitionIn: RULES.DEFAULT_TRANSITION,
     transitionDuration: RULES.DEFAULT_CROSSFADE_S,
+    keyGreen: false, // green-screen shots opt in per clip (inspector)
   };
 }
 
-// A fresh picture-in-picture overlay item.
+// A fresh picture-in-picture layer item (any layer lane above main).
 export function newOverlayItem({ src = null, label = "", start = 0, duration = 5 } = {}) {
   const name = label || (src ? baseName(src) : "Overlay");
   return {
@@ -119,11 +134,26 @@ export function newOverlayItem({ src = null, label = "", start = 0, duration = 5
   };
 }
 
+// A fresh background item: fills the whole frame BEHIND the main video —
+// the layer a green-screen shot reveals when its green is knocked out.
+export function newBackgroundItem({ src = null, label = "", start = 0, duration = 10 } = {}) {
+  const name = label || (src ? baseName(src) : "Background");
+  return {
+    id: uid("b"),
+    kind: "bg",
+    src,
+    label: name,
+    hue: hueFromName(name),
+    start,
+    duration,
+  };
+}
+
 export function emptyProject(title = "Untitled video") {
   return {
-    version: 2,
+    version: 3,
     title,
-    tracks: { main: [], overlay: [] },
+    tracks: { main: [], layers: [[]], background: [] },
     captions: [],
     music: { src: null, volume: 0.8 },
   };
@@ -134,7 +164,7 @@ export function emptyProject(title = "Untitled video") {
 export function sampleProject() {
   const p = emptyProject("Sample — The Gate at Dusk (Phase 1 demo)");
   p.tracks.main = [
-    { ...newMainItem({ label: "The farm gate", kind: "still", duration: 4 }), hue: 96 },
+    { ...newMainItem({ label: "The farm gate", kind: "still", duration: 4 }), hue: 96, keyGreen: true },
     {
       ...newMainItem({ label: "The herb rows", kind: "still", duration: 4 }),
       hue: 140, transitionIn: "crossfade", transitionDuration: 0.6,
@@ -148,8 +178,16 @@ export function sampleProject() {
       hue: 210, fadeOut: 1.2, // fade-OUT at the very end is unrestricted
     },
   ];
-  p.tracks.overlay = [
-    { ...newOverlayItem({ label: "Corner cam — the druid", start: 10, duration: 5 }), hue: 280 },
+  p.tracks.layers = [
+    [
+      { ...newOverlayItem({ label: "Corner cam — the druid", start: 10, duration: 5 }), hue: 280 },
+    ],
+    [
+      { ...newOverlayItem({ label: "Leaf border — top layer", start: 0, duration: 6 }), hue: 45, corner: "top-left", sizePct: 20 },
+    ],
+  ];
+  p.tracks.background = [
+    { ...newBackgroundItem({ label: "Backdrop — the valley behind", start: 0, duration: 15 }), hue: 190 },
   ];
   p.captions = [
     { id: uid("t"), start: 0, end: 4, text: "The gate is open." },
@@ -181,15 +219,47 @@ export function captionAt(project, t) {
   return project.captions.find((c) => t >= c.start && t < c.end && c.text) || null;
 }
 
-// Overlay items visible at time t.
-export function overlaysAt(project, t) {
-  return project.tracks.overlay.filter((o) => t >= o.start && t < o.start + o.duration);
+// Layer items visible at time t, flattened bottom-to-top across every
+// layer lane (so later entries draw over earlier ones).
+export function layersAt(project, t) {
+  const out = [];
+  for (const lane of project.tracks.layers || []) {
+    for (const o of lane) {
+      if (t >= o.start && t < o.start + o.duration) out.push(o);
+    }
+  }
+  return out;
 }
 
-// Accept a Phase 0 (v1) project and lift it into v2 shape, so old sample
-// files never crash the desktop app.
+// Background item visible at time t (the lane behind the main video).
+export function backgroundAt(project, t) {
+  return (project.tracks.background || []).find(
+    (b) => t >= b.start && t < b.start + b.duration
+  ) || null;
+}
+
+// Back-compat name: every layer item visible at t.
+export function overlaysAt(project, t) {
+  return layersAt(project, t);
+}
+
+// Lift older projects into the v3 layered shape, so old files never crash
+// the app: v1 (Phase 0 stills) → v3; v2 (single overlay lane) → the
+// overlay lane becomes layer 1, with an empty background lane.
 export function migrateProject(project) {
-  if (!project || project.version >= 2) return project;
+  if (!project) return project;
+  if (project.version >= 3) {
+    project.tracks.layers = project.tracks.layers?.length ? project.tracks.layers : [[]];
+    project.tracks.background = project.tracks.background || [];
+    return project;
+  }
+  if (project.version === 2) {
+    project.tracks.layers = [project.tracks.overlay || []];
+    project.tracks.background = [];
+    delete project.tracks.overlay;
+    project.version = 3;
+    return project;
+  }
   const main = (project.stills || []).map((s) => ({
     ...newMainItem({ label: s.label, kind: s.kind === "segue" ? "segue" : "still", duration: s.duration }),
     id: s.id,
@@ -199,9 +269,9 @@ export function migrateProject(project) {
     provider: s.provider,
   }));
   return {
-    version: 2,
+    version: 3,
     title: project.title || "Untitled video",
-    tracks: { main, overlay: [] },
+    tracks: { main, layers: [[]], background: [] },
     captions: (project.captions || []).map((c) => ({ id: uid("t"), ...c })),
     music: project.music || { src: null, volume: 0.8 },
   };

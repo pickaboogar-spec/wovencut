@@ -172,3 +172,7 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
   .workspace { grid-template-columns: 1fr; }
   .inspector { position: static; max-height: none; }
 }
+
+/* Layer stack controls + background blocks (v3 layered timeline) */
+.tl-tools { display: flex; gap: 8px; padding: 6px 0 6px 104px; }
+.tl-block.tl-bg { border-style: dashed; }

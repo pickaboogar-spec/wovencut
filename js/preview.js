@@ -12,7 +12,7 @@
 // the clip's numbers say, and Paul's projects say 0. Crossfades only ever
 // happen across a cut boundary, between segment n and n+1.
 
-import { captionAt, itemStartTimes, overlaysAt, projectDuration } from "./model.js";
+import { backgroundAt, captionAt, itemStartTimes, layersAt, projectDuration } from "./model.js";
 
 export class Preview {
   constructor(canvas) {
@@ -106,9 +106,26 @@ export class Preview {
     );
     if (idx === -1) idx = project.tracks.main.length - 1;
 
+    // BACKGROUND lane first: it fills the frame behind everything else.
+    const bg = backgroundAt(project, tc);
+    if (bg) this.drawFrame(bg, 1, 0, 0, canvas.width, canvas.height);
+
     const item = project.tracks.main[idx];
     const intoItem = tc - starts[idx];
-    this.drawFrame(item, this.fadeAlpha(item, intoItem), 0, 0, canvas.width, canvas.height);
+    // Green-screen clips are drawn translucent in the placeholder preview
+    // so the background lane visibly shows through — a stand-in for the
+    // real chroma key the Phase 4 export does with FFmpeg's chromakey.
+    const mainAlpha = this.fadeAlpha(item, intoItem) * (item.keyGreen && bg ? 0.62 : 1);
+    this.drawFrame(item, mainAlpha, 0, 0, canvas.width, canvas.height);
+    if (item.keyGreen && bg) {
+      ctx.save();
+      ctx.font = "500 15px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.textAlign = "center";
+      ctx.fillText("🟩 green screen — the backdrop shows through where the green was",
+        canvas.width / 2, 30);
+      ctx.restore();
+    }
 
     // Crossfade across the boundary INTO the next segment.
     const next = project.tracks.main[idx + 1];
@@ -120,8 +137,8 @@ export class Preview {
       }
     }
 
-    // Picture-in-picture overlays, in their chosen corner.
-    for (const o of overlaysAt(project, tc)) {
+    // Layer lanes over the top, bottom lane first so higher layers win.
+    for (const o of layersAt(project, tc)) {
       const w = (canvas.width * o.sizePct) / 100;
       const h = (w * 9) / 16;
       const m = 24;

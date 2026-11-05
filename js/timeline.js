@@ -1,11 +1,14 @@
 // WovenCut (working title) — interactive timeline editor (Phase 1 desktop)
 // ---------------------------------------------------------------------------
-// The centrepiece of the desktop app. Four lanes:
+// The centrepiece of the desktop app. A stack of lanes, top to bottom:
 //
-//   🪟 Overlay (PiP) — blocks placed by start time; corner + size edited
-//                      in the inspector; drawn over the main track.
+//   🪟 Layer N (PiP) — any number of layer lanes (➕ Add a layer on top);
+//                      blocks placed by start time; corner + size edited
+//                      in the inspector; drawn OVER everything below.
 //   🎬 Main          — the picture track. Drop files here, drag blocks to
 //                      reorder, click to select, ✕ or Delete key removes.
+//   🌄 Background    — full-frame lane BEHIND main; shows through where a
+//                      main clip is marked green screen (keyGreen).
 //   💬 Captions      — blocks by start/end; click to select and edit text
 //                      in the inspector.
 //   🎵 Music         — the music bed's file reference (a block when set).
@@ -18,9 +21,16 @@
 // "If a first-time user can't guess what a button does, the button is wrong."
 
 import {
-  baseName, itemStartTimes, kindFromPath, newMainItem, newOverlayItem,
-  projectDuration,
+  baseName, itemStartTimes, kindFromPath, newBackgroundItem, newMainItem,
+  newOverlayItem, projectDuration,
 } from "./model.js";
+
+// Lane ids: "main" | "layer:<n>" (n = 0 is the lane just above main;
+// higher n stacks higher) | "background" | "caption" | "music".
+export function layerIndex(lane) {
+  const m = /^layer:(\d+)$/.exec(lane || "");
+  return m ? +m[1] : -1;
+}
 
 export const PX_PER_SEC = 16;
 const LANE_LABEL_W = 104;
@@ -56,8 +66,13 @@ export function splitMainItemAt(project, itemId, atTime) {
 export function removeItem(project, lane, id) {
   if (lane === "main") {
     project.tracks.main = project.tracks.main.filter((it) => it.id !== id);
-  } else if (lane === "overlay") {
-    project.tracks.overlay = project.tracks.overlay.filter((it) => it.id !== id);
+  } else if (lane === "overlay" || layerIndex(lane) >= 0) {
+    const li = lane === "overlay" ? 0 : layerIndex(lane);
+    if (project.tracks.layers[li]) {
+      project.tracks.layers[li] = project.tracks.layers[li].filter((it) => it.id !== id);
+    }
+  } else if (lane === "background") {
+    project.tracks.background = project.tracks.background.filter((it) => it.id !== id);
   } else if (lane === "caption") {
     project.captions = project.captions.filter((c) => c.id !== id);
   } else if (lane === "music") {
@@ -175,10 +190,16 @@ export class TimelineEditor {
       const duration = await probeDuration(
         file, kind, kind === "still" ? 5 : 10
       );
-      if (lane === "overlay") {
+      const li = lane === "overlay" ? 0 : layerIndex(lane);
+      if (li >= 0) {
         const start = atTime != null ? Math.max(0, +atTime.toFixed(2)) : projectDuration(project);
-        project.tracks.overlay.push(
+        (project.tracks.layers[li] ||= []).push(
           newOverlayItem({ src: path, start, duration: Math.min(duration, 30) })
+        );
+      } else if (lane === "background") {
+        const start = atTime != null ? Math.max(0, +atTime.toFixed(2)) : projectDuration(project);
+        project.tracks.background.push(
+          newBackgroundItem({ src: path, start, duration })
         );
       } else {
         project.tracks.main.push(newMainItem({ src: path, kind, duration }));
@@ -196,9 +217,14 @@ export class TimelineEditor {
       const kind = kindFromPath(p);
       if (kind === "audio") {
         project.music = { src: p, volume: project.music?.volume ?? 0.8 };
-      } else if (lane === "overlay") {
-        project.tracks.overlay.push(
+      } else if (lane === "overlay" || layerIndex(lane) >= 0) {
+        const li = lane === "overlay" ? 0 : layerIndex(lane);
+        (project.tracks.layers[li] ||= []).push(
           newOverlayItem({ src: p, start: projectDuration(project) })
+        );
+      } else if (lane === "background") {
+        project.tracks.background.push(
+          newBackgroundItem({ src: p, start: projectDuration(project) })
         );
       } else {
         project.tracks.main.push(newMainItem({ src: p, kind }));
@@ -248,20 +274,48 @@ export class TimelineEditor {
       </div>`;
     }).join("");
 
-    // Overlay (PiP) blocks — positioned by start time
-    const overlayBlocks = project.tracks.overlay.map((o) => `
-      <div class="tl-block tl-abs ${sel?.lane === "overlay" && sel.id === o.id ? "selected" : ""}"
-           data-lane="overlay" data-id="${o.id}"
+    // Layer-lane blocks (picture-in-picture style, positioned by start
+    // time). Lane "layer:<n>": n = 0 sits just over the main video and
+    // higher numbers stack higher — what's on a higher lane draws on top.
+    const layerBlocks = (li) => (project.tracks.layers[li] || []).map((o) => `
+      <div class="tl-block tl-abs ${sel?.lane === `layer:${li}` && sel.id === o.id ? "selected" : ""}"
+           data-lane="layer:${li}" data-id="${o.id}"
            style="left:${o.start * PX_PER_SEC}px;width:${Math.max(56, o.duration * PX_PER_SEC)}px"
-           title="Picture-in-picture: ${escapeHtml(o.label)} — starts ${o.start}s, ${o.duration}s long, ${o.corner}, ${o.sizePct}% wide. Click to select; position, corner and size live in the inspector.">
+           title="Layer ${li + 1} item: ${escapeHtml(o.label)} — starts ${o.start}s, ${o.duration}s long, ${o.corner}, ${o.sizePct}% wide. It draws OVER everything on the lanes below it. Click to select; position, corner and size live in the inspector.">
         <span class="tl-block-icon">🪟</span>
         <span class="tl-block-main">
           <span class="tl-label">${escapeHtml(o.label)}</span>
           <span class="tl-meta">${o.start}s + ${o.duration}s · ${o.corner} · ${o.sizePct}%</span>
         </span>
-        <button type="button" class="tl-del" data-del="${o.id}" data-lane="overlay"
-          title="Remove this picture-in-picture overlay">✕</button>
+        <button type="button" class="tl-del" data-del="${o.id}" data-lane="layer:${li}"
+          title="Remove this item from layer ${li + 1}">✕</button>
       </div>`).join("");
+
+    // Background blocks — full-frame items BEHIND the main video, revealed
+    // where a green-screen main clip is keyed out.
+    const bgBlocks = project.tracks.background.map((b) => `
+      <div class="tl-block tl-abs tl-bg ${sel?.lane === "background" && sel.id === b.id ? "selected" : ""}"
+           data-lane="background" data-id="${b.id}"
+           style="left:${b.start * PX_PER_SEC}px;width:${Math.max(56, b.duration * PX_PER_SEC)}px"
+           title="Background: ${escapeHtml(b.label)} — fills the whole frame BEHIND the main video from ${b.start}s for ${b.duration}s. It shows through wherever a main clip is marked green screen. Click to select.">
+        <span class="tl-block-icon">🌄</span>
+        <span class="tl-block-main">
+          <span class="tl-label">${escapeHtml(b.label)}</span>
+          <span class="tl-meta">${b.start}s + ${b.duration}s · behind main</span>
+        </span>
+        <button type="button" class="tl-del" data-del="${b.id}" data-lane="background"
+          title="Remove this background item">✕</button>
+      </div>`).join("");
+
+    // Layer lanes render TOP lane first (highest number at the top of the
+    // stack, exactly like layers in a picture editor).
+    const layerRows = project.tracks.layers.map((laneItems, li) => ({ laneItems, li }))
+      .reverse()
+      .map(({ laneItems, li }) => laneRow(
+        `layer:${li}`, "🪟", `Layer ${li + 1}`,
+        `Layer ${li + 1} — floats over everything below it${li === project.tracks.layers.length - 1 ? " (top layer)" : ""}. Drop clips or images here.`,
+        layerBlocks(li) || `<div class="tl-empty">Drop a clip or image here to float it over the lanes below.</div>`
+      )).join("");
 
     // Caption blocks
     const capBlocks = project.captions.map((c) => `
@@ -298,8 +352,16 @@ export class TimelineEditor {
       <div class="tl-scroll">
         <div class="tl-inner" style="width:${LANE_LABEL_W + widthPx}px">
           <div class="tl-ruler">${ticks}</div>
-          ${laneRow("overlay", "🪟", "Overlay", "Picture-in-picture lane: clips here float in a corner over the main video.", overlayBlocks || `<div class="tl-empty">Drop a clip here to float it over the main video.</div>`)}
+          <div class="tl-tools">
+            <button type="button" class="tool-btn" data-add-layer
+              title="Add another layer lane on top of the stack — things on higher layers draw over the lanes below">➕ Add a layer on top</button>
+            ${project.tracks.layers.length > 1 && project.tracks.layers[project.tracks.layers.length - 1].length === 0 ? `
+            <button type="button" class="tool-btn" data-remove-layer
+              title="Remove the top layer lane (it's empty)">➖ Remove top layer</button>` : ""}
+          </div>
+          ${layerRows}
           ${laneRow("main", "🎬", "Main video", "The main track. Drop video clips and images here; drag blocks left/right to reorder them.", mainBlocks || `<div class="tl-empty">Drop video clips or images here — or press 🎞️ Import Clips.</div>`)}
+          ${laneRow("background", "🌄", "Background", "Background lane: fills the frame BEHIND the main video. Mark a main clip as green screen and this shows through where the green was.", bgBlocks || `<div class="tl-empty">Drop a clip or image here to sit behind the main video (green-screen backdrop).</div>`)}
           ${laneRow("caption", "💬", "Captions", "Caption lane: words that appear on screen, timed to the video.", capBlocks)}
           ${laneRow("music", "🎵", "Music", "Music lane: one audio file plays under the whole video.", musicBlock)}
           <div class="tl-playhead" title="Playhead — where the preview is up to"></div>
@@ -387,6 +449,21 @@ export class TimelineEditor {
         const r = track.getBoundingClientRect();
         this.hooks.onSeek(Math.max(0, (e.clientX - r.left) / PX_PER_SEC));
       });
+    });
+
+    // Layer stack controls: add a lane on top / remove an empty top lane.
+    root.querySelector("[data-add-layer]")?.addEventListener("click", () => {
+      this.project.tracks.layers.push([]);
+      this.hooks.onChange();
+      this.render();
+    });
+    root.querySelector("[data-remove-layer]")?.addEventListener("click", () => {
+      const layers = this.project.tracks.layers;
+      if (layers.length > 1 && layers[layers.length - 1].length === 0) {
+        layers.pop();
+        this.hooks.onChange();
+        this.render();
+      }
     });
   }
 
