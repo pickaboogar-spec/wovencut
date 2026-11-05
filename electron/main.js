@@ -12,7 +12,7 @@
 // PRIVACY POSTURE (unchanged from the skeleton): no telemetry, no network
 // calls, no accounts, no analytics. Nothing in this process phones home.
 
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -47,6 +47,12 @@ function createWindow() {
     },
   });
   win.removeMenu(); // the in-app toolbar is the menu (icons + labels rule)
+  // External links (the YouTube upload page) open in the user's browser,
+  // never inside the editor window.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) shell.openExternal(url);
+    return { action: "deny" };
+  });
   win.loadURL("app://editor/index.html");
   return win;
 }
@@ -122,6 +128,18 @@ function registerIpc() {
     });
     if (res.canceled) return null;
     await fs.promises.writeFile(res.filePath, Buffer.from(arrayBuffer));
+    return res.filePath;
+  });
+
+  // Save a plain-text file (the YouTube upload kit) where the user picks.
+  ipcMain.handle("dialog:saveText", async (_event, defaultName, text) => {
+    const res = await dialog.showSaveDialog({
+      title: "Save text file",
+      defaultPath: defaultName || "wovencut.txt",
+      filters: [{ name: "Text", extensions: ["txt"] }],
+    });
+    if (res.canceled) return null;
+    await fs.promises.writeFile(res.filePath, text, "utf8");
     return res.filePath;
   });
 

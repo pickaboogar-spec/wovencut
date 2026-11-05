@@ -73,6 +73,9 @@ function mountPanels() {
           return desktop.runExport(p, out);
         }
       : null,
+    saveTextFile: desktop
+      ? (name, text) => desktop.saveTextFile(name, text)
+      : null,
   });
   mountReplicatePanel(document.getElementById("panel-replicate"));
   mountClaudePanel(document.getElementById("panel-Muse"));

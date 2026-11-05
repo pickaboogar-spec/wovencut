@@ -156,6 +156,11 @@ export function emptyProject(title = "Untitled video") {
     tracks: { main: [], layers: [[]], background: [] },
     captions: [],
     music: { src: null, volume: 0.8 },
+    // Credit for the original creator (reaction videos, Paul Nov 4 2026):
+    // filled in the Reaction panel, written into the YouTube description
+    // automatically at export — crediting the original is not optional
+    // homework the user has to remember.
+    sourceCredit: { title: "", creator: "", url: "" },
   };
 }
 
@@ -195,6 +200,11 @@ export function sampleProject() {
   cam.lockToId = p.tracks.main[3].id;
   cam.lockOffset = 0;
   cam.reactionPair = true;
+  p.sourceCredit = {
+    title: "The Valley in Autumn — full walk",
+    creator: "@valleywalks",
+    url: "",
+  };
   p.captions = [
     { id: uid("t"), start: 0, end: 4, text: "The gate is open." },
     { id: uid("t"), start: 4, end: 8, text: "The rows remember every hand that planted them." },
@@ -278,12 +288,14 @@ export function migrateProject(project) {
   if (project.version >= 3) {
     project.tracks.layers = project.tracks.layers?.length ? project.tracks.layers : [[]];
     project.tracks.background = project.tracks.background || [];
+    project.sourceCredit = project.sourceCredit || { title: "", creator: "", url: "" };
     return project;
   }
   if (project.version === 2) {
     project.tracks.layers = [project.tracks.overlay || []];
     project.tracks.background = [];
     delete project.tracks.overlay;
+    project.sourceCredit = project.sourceCredit || { title: "", creator: "", url: "" };
     project.version = 3;
     return project;
   }
@@ -301,5 +313,6 @@ export function migrateProject(project) {
     tracks: { main, layers: [[]], background: [] },
     captions: (project.captions || []).map((c) => ({ id: uid("t"), ...c })),
     music: project.music || { src: null, volume: 0.8 },
+    sourceCredit: { title: "", creator: "", url: "" },
   };
 }

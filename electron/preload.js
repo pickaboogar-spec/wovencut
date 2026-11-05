@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld("wovencut", {
   saveVideoDialog: (defaultName) => ipcRenderer.invoke("dialog:saveVideo", defaultName),
   saveRecording: (arrayBuffer, defaultName) =>
     ipcRenderer.invoke("dialog:saveRecording", arrayBuffer, defaultName),
+  saveTextFile: (defaultName, text) =>
+    ipcRenderer.invoke("dialog:saveText", defaultName, text),
 
   // Phase 1 stub in the main process — returns the plan, renders nothing.
   runExport: (project, outputPath) =>

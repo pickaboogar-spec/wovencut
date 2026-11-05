@@ -187,3 +187,8 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 .reaction-pick { cursor: pointer; }
 .reaction-status { margin-top: 10px; font-size: 15px; }
 .tool-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* YouTube upload kit + reaction credit fields */
+.yt-kit { margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 10px; }
+.yt-desc { width: 100%; font: inherit; font-size: 14px; }
+.reaction-credit { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }

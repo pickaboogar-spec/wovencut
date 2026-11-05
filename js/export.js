@@ -133,6 +133,85 @@ export function buildFfmpegArgs(project, outputPath = "wovencut-export.mp4") {
   return args;
 }
 
+// YouTube upload kit (Paul, Nov 4 2026): exporting for YouTube means the
+// video AND its page text. The description is built for the user — and
+// for reaction videos it AUTOMATICALLY credits the original creator with
+// a link to the original video, because too many reaction uploads skip
+// that credit. The one-click API upload is a later phase (it needs the
+// user's own YouTube sign-in, same bring-your-own-account rule as
+// everything else); today the kit gives a copy-ready description plus a
+// button that opens YouTube's upload page.
+export function buildYoutubeMetadata(project) {
+  const credit = project.sourceCredit || {};
+  const hasCredit = Boolean(credit.url || credit.creator || credit.title);
+  const isReaction = project.tracks.main.some((i) => i.reactionPair) ||
+    (project.tracks.layers || []).flat().some((i) => i.reactionPair) || hasCredit;
+
+  const lines = [];
+  if (isReaction) {
+    lines.push(
+      `My reaction to ${credit.title ? `"${credit.title}"` : "the original video"}${credit.creator ? ` by ${credit.creator}` : ""}.`,
+      ""
+    );
+  }
+  if (hasCredit) {
+    lines.push(
+      "— ORIGINAL VIDEO —",
+      `🎬 ${credit.title || "Original video"}${credit.creator ? ` by ${credit.creator}` : ""}`,
+      credit.url ? `▶️ Watch the original: ${credit.url}` : "(Add the original video's link in the Reaction panel and it lands here automatically.)",
+      credit.creator ? `Go show ${credit.creator} some love — watch, like, and subscribe to the original creator.` : "",
+      ""
+    );
+  }
+  lines.push(
+    "Made with WovenCut — a free video editor. No watermark, ever.",
+    ""
+  );
+
+  const tags = ["reaction", "reactionvideo"];
+  if (credit.creator) tags.push(credit.creator.replace(/^@/, ""));
+  if (credit.title) {
+    tags.push(...credit.title.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3).slice(0, 4));
+  }
+
+  return {
+    title: project.title || "Untitled video",
+    description: lines.join("\n").trim(),
+    tags: [...new Set(tags)],
+    creditIncluded: hasCredit,
+    isReaction,
+  };
+}
+
+function ytSection(project) {
+  const yt = buildYoutubeMetadata(project);
+  return `
+    <div class="yt-kit">
+      <h3>📺 YouTube upload kit</h3>
+      <p class="stub-note">${yt.creditIncluded
+        ? "✅ The original creator's credit is written into the description below — automatically."
+        : "For a reaction video, add the original video's link and creator in the 🔴 Record a Reaction panel and the credit appears here automatically — the original creator should never go uncredited."}</p>
+      <label class="insp-field" title="The title for the YouTube page">
+        <span class="insp-label">🏷️ Title</span>
+        <input type="text" readonly value="${yt.title.replace(/"/g, "&quot;")}">
+      </label>
+      <label class="insp-field" title="The description for the YouTube page — copy it as-is">
+        <span class="insp-label">📝 Description (credit included)</span>
+        <textarea class="yt-desc" rows="9" readonly>${yt.description.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</textarea>
+      </label>
+      <p class="stub-note">Tags: ${yt.tags.join(", ")}</p>
+      <div class="insp-actions">
+        <button type="button" class="tool-btn" data-action="yt-copy"
+          title="Copy the title, description and tags to the clipboard, ready to paste into YouTube">📋 Copy Upload Text</button>
+        <button type="button" class="tool-btn" data-action="yt-save"
+          title="Save the title, description and tags as a text file next to your video">💾 Save Upload Kit (.txt)</button>
+        <button type="button" class="tool-btn primary" data-action="yt-open"
+          title="Open YouTube's upload page in your browser — drop in the exported video, paste the upload text, done">▶️ Open YouTube Upload Page</button>
+      </div>
+      <p class="yt-status stub-note" hidden></p>
+    </div>`;
+}
+
 // Panel UI: shows the plan and, in the desktop app, asks the main process
 // to run the (stubbed) export so Paul sees exactly what Phase 4 will do.
 export function mountExportPanel(project, container, hooks = {}) {
@@ -147,7 +226,8 @@ export function mountExportPanel(project, container, hooks = {}) {
     `<button type="button" class="tool-btn" data-action="run-export"` +
     ` title="Ask the desktop shell to run the export pipeline (stub in this phase — it returns the full FFmpeg plan and renders nothing)">` +
     `📤 Run export (stub)</button>` +
-    `<pre class="export-result" hidden></pre>`;
+    `<pre class="export-result" hidden></pre>` +
+    ytSection(project);
   const btn = container.querySelector('[data-action="run-export"]');
   const out = container.querySelector(".export-result");
   btn.addEventListener("click", async () => {
@@ -163,5 +243,40 @@ export function mountExportPanel(project, container, hooks = {}) {
         "No desktop shell detected (browser preview). The export stub " +
         "lives in the Electron main process — run the desktop app.";
     }
+  });
+
+  // YouTube upload kit wiring.
+  const yt = buildYoutubeMetadata(project);
+  const ytStatus = container.querySelector(".yt-status");
+  const kitText =
+    `TITLE:\n${yt.title}\n\nDESCRIPTION:\n${yt.description}\n\nTAGS:\n${yt.tags.join(", ")}\n`;
+  const say = (msg) => {
+    ytStatus.hidden = false;
+    ytStatus.textContent = msg;
+  };
+  container.querySelector('[data-action="yt-copy"]')?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(kitText);
+      say("📋 Copied — paste it into the YouTube upload page.");
+    } catch {
+      say("Copy didn't work here — the text is in the boxes above; select and copy it by hand.");
+    }
+  });
+  container.querySelector('[data-action="yt-save"]')?.addEventListener("click", async () => {
+    if (hooks.saveTextFile) {
+      const path = await hooks.saveTextFile(`${project.title || "wovencut"} — YouTube upload kit.txt`, kitText);
+      say(path ? `💾 Saved the upload kit to ${path}` : "Save cancelled — nothing written.");
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([kitText], { type: "text/plain" }));
+      a.download = "youtube-upload-kit.txt";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      say("💾 Upload kit downloaded.");
+    }
+  });
+  container.querySelector('[data-action="yt-open"]')?.addEventListener("click", () => {
+    window.open("https://www.youtube.com/upload", "_blank");
+    say("▶️ YouTube's upload page is opening in your browser. Drop in the exported MP4, then paste the upload text (Copy button above).");
   });
 }

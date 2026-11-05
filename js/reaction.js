@@ -52,6 +52,16 @@ export function mountReactionPanel(container, hooks = {}) {
       <button type="button" class="tool-btn danger" data-act="stop" disabled
         title="Stop recording and build the locked pair on the timeline">⏹️ Stop &amp; Build My Pair</button>
     </div>
+    <div class="reaction-credit">
+      <label class="insp-field" title="Paste the link to the original video on YouTube — it goes into your upload description automatically, so the original creator always gets credited">
+        <span class="insp-label">🔗 Original video link (YouTube)</span>
+        <input type="url" data-el="credit-url" placeholder="https://www.youtube.com/watch?v=…">
+      </label>
+      <label class="insp-field" title="Who made the original video — their channel name or @handle. They get named and tagged in your description automatically">
+        <span class="insp-label">🙋 Original creator (@handle or channel name)</span>
+        <input type="text" data-el="credit-creator" placeholder="@originalcreator">
+      </label>
+    </div>
     <p class="reaction-status" data-el="status">Camera is off. Pick a video and turn the camera on to begin.</p>`;
 
   const source = container.querySelector('[data-el="source"]');
@@ -61,6 +71,22 @@ export function mountReactionPanel(container, hooks = {}) {
   const btnCamera = container.querySelector('[data-act="camera"]');
   const btnStart = container.querySelector('[data-act="start"]');
   const btnStop = container.querySelector('[data-act="stop"]');
+
+  // Credit fields → project.sourceCredit (the Export panel writes them
+  // into the YouTube description automatically).
+  const creditUrl = container.querySelector('[data-el="credit-url"]');
+  const creditCreator = container.querySelector('[data-el="credit-creator"]');
+  const saveCredit = () => {
+    const project = hooks.getProject();
+    project.sourceCredit = {
+      ...(project.sourceCredit || {}),
+      url: creditUrl.value.trim(),
+      creator: creditCreator.value.trim(),
+      title: project.sourceCredit?.title || (sourceFile ? sourceFile.name.replace(/\.[^.]+$/, "") : ""),
+    };
+  };
+  creditUrl.addEventListener("change", saveCredit);
+  creditCreator.addEventListener("change", saveCredit);
 
   let stream = null;
   let recorder = null;
@@ -159,6 +185,7 @@ export function mountReactionPanel(container, hooks = {}) {
   });
 
   async function finishTake() {
+    saveCredit();
     clearInterval(ticker);
     const takeSeconds = +elapsed().toFixed(2);
     const blob = new Blob(chunks, { type: "video/webm" });
