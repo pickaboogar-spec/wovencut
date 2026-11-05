@@ -26,12 +26,38 @@
 //   - Music mixes under the picture at project volume.
 //   Output: MP4 (H.264 + AAC), long-form-YouTube friendly (1920×1080).
 
+// Export presets (pro-upgrade batch, Nov 5 2026): one-tap shapes for the
+// places videos actually go, like the preset menus in pro editors. A
+// preset sets ONLY the frame size and frame rate of the render — every
+// preset obeys Paul's first-frame rule: no fade-in is added, no black
+// lead-in exists, the video opens on the first clip at full strength.
+export const EXPORT_PRESETS = [
+  { id: "youtube-1080", label: "📺 YouTube — widescreen 1920 × 1080, 30 fps", width: 1920, height: 1080, fps: 30 },
+  { id: "youtube-4k", label: "📺 YouTube 4K — 3840 × 2160, 30 fps (bigger files, slower render)", width: 3840, height: 2160, fps: 30 },
+  { id: "vertical", label: "📱 Vertical 1080 × 1920, 30 fps — TikTok, Reels, Shorts", width: 1080, height: 1920, fps: 30 },
+  { id: "square", label: "⬛ Square 1080 × 1080, 30 fps — Instagram posts", width: 1080, height: 1080, fps: 30 },
+  { id: "project", label: "⚙️ Use the project settings (⚙️ Project Settings panel)", width: 0, height: 0, fps: 0 },
+];
+
+// Resolve the effective export spec: the chosen preset, or the project
+// settings when the preset is "project" (or unknown).
+export function getExportSpec(project) {
+  const preset = EXPORT_PRESETS.find((p) => p.id === project.exportPreset) || EXPORT_PRESETS[0];
+  if (preset.id === "project" || !preset.width) {
+    const s = project.settings || { width: 1920, height: 1080, fps: 30 };
+    return { preset, width: s.width, height: s.height, fps: s.fps };
+  }
+  return { preset, width: preset.width, height: preset.height, fps: preset.fps };
+}
+
 export function planExport(project) {
   const total = project.tracks.main.reduce((s, i) => s + i.duration, 0);
   const layerCount = (project.tracks.layers || []).reduce((s, l) => s + l.length, 0);
+  const spec = getExportSpec(project);
   return {
     engine: "FFmpeg (desktop) — binary bundled in Phase 4 via ffmpeg-static; stub in Phase 1",
-    output: "MP4 — H.264 + AAC, 1920×1080, rendered locally. Nothing is uploaded, ever.",
+    preset: spec.preset.label,
+    output: `MP4 — H.264 + AAC, ${spec.width}×${spec.height} at ${spec.fps} fps, rendered locally. Nothing is uploaded, ever.`,
     clips: project.tracks.main.length,
     overlays: layerCount,
     background: (project.tracks.background || []).length,
@@ -124,9 +150,16 @@ export function buildFfmpegArgs(project, outputPath = "wovencut-export.mp4") {
     args.push("-i", project.music.src); // mixed under picture at project volume
   }
 
+  // Output spec from the chosen export preset (or the project settings).
+  // The scale targets the preset's frame; Phase 4 validates the exact
+  // scale/pad chain against the bundled binary.
+  const spec = getExportSpec(project);
+  filters.push(`# output frame: scale/pad to ${spec.width}x${spec.height} at ${spec.fps} fps (preset: ${spec.preset.id})`);
+
   args.push(
     "-filter_complex", filters.join("; ") || "null",
     "-c:v", "libx264", "-c:a", "aac", "-pix_fmt", "yuv420p",
+    "-s", `${spec.width}x${spec.height}`, "-r", String(spec.fps),
     "-movflags", "+faststart", // long-form YouTube uploads: progressive start
     outputPath
   );
@@ -298,7 +331,14 @@ function ytSection(project) {
 export function mountExportPanel(project, container, hooks = {}) {
   const plan = planExport(project);
   container.innerHTML =
+    `<label class="insp-field" title="Choose where this video is headed and the export matches its shape and frame rate. Every preset opens on your first clip at full strength — no fade-in, no black lead-in, ever (Paul's first-frame rule).">
+      <span class="insp-label">🎯 Export preset — where is this video going?</span>
+      <select id="export-preset">
+        ${EXPORT_PRESETS.map((p) => `<option value="${p.id}" ${p.id === (project.exportPreset || "youtube-1080") ? "selected" : ""}>${p.label}</option>`).join("")}
+      </select>
+    </label>` +
     `<p class="stub-note">Engine: ${plan.engine}.<br>` +
+    `Preset: ${plan.preset}.<br>` +
     `Output: ${plan.output}<br>` +
     `First frame: ${plan.firstFrame}.<br>` +
     `Clips: ${plan.clips} · Layer items: ${plan.overlays} · Background items: ${plan.background} · ` +
@@ -309,6 +349,10 @@ export function mountExportPanel(project, container, hooks = {}) {
     `📤 Run export (stub)</button>` +
     `<pre class="export-result" hidden></pre>` +
     ytSection(project);
+  container.querySelector("#export-preset")?.addEventListener("change", (e) => {
+    project.exportPreset = e.target.value;
+    hooks.onChange?.();
+  });
   const btn = container.querySelector('[data-action="run-export"]');
   const out = container.querySelector(".export-result");
   btn.addEventListener("click", async () => {

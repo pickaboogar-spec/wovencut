@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld("wovencut", {
   saveTextFile: (defaultName, text) =>
     ipcRenderer.invoke("dialog:saveText", defaultName, text),
 
+  // Read an imported media file's bytes so the renderer can decode its
+  // audio waveform locally (see main.js "file:readBytes").
+  readFileBytes: (filePath) => ipcRenderer.invoke("file:readBytes", filePath),
+
   // Phase 1 stub in the main process — returns the plan, renders nothing.
   runExport: (project, outputPath) =>
     ipcRenderer.invoke("export:run", project, outputPath),

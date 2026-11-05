@@ -1,10 +1,11 @@
-// WovenCut (working title) — captions (basic editing live; full editor = Phase 2 gate)
+// WovenCut (working title) — captions
 // ---------------------------------------------------------------------------
 // The model carries captions as [{ id, start, end, text }] in seconds.
-// Phase 1 desktop: captions can be added (💬 Add Caption button), selected
-// on the captions lane, and their words/timing edited in the inspector —
-// those mutations live here and WORK. The full caption editor (drag to
-// retime on the lane, per-segment auto-timing) remains the Phase 2 gate.
+// Captions can be added (💬 Add Caption button), selected on the captions
+// lane, DRAGGED left/right on the lane to retime them (pro-upgrade batch,
+// Nov 5 2026), and their words/timing edited in the inspector — those
+// mutations live here and WORK. Per-segment auto-timing remains a later
+// refinement.
 //
 // Design constraints inherited from Paul's other work:
 //  - Caption type is LARGE and legible on a phone at a glance.
@@ -46,7 +47,6 @@ export function mountCaptionsEditor(project, container) {
   container.innerHTML =
     `<p class="stub-note">${n} caption${n === 1 ? "" : "s"} in this project. ` +
     `Add one with the 💬 Add Caption button (it lands at the playhead), ` +
-    `click it on the Captions lane, and edit its words and timing in the ` +
-    `inspector. The full drag-to-retime caption editor is the Phase 2 ` +
-    `review gate.</p>`;
+    `drag it left or right on the Captions lane to retime it, and edit ` +
+    `its words and exact timing in the inspector.</p>`;
 }

@@ -78,13 +78,13 @@ body {
   background: var(--bg2); border: 1px solid var(--panel-edge); border-radius: 10px;
 }
 .tl-inner { position: relative; padding-bottom: 0.4rem; }
-.tl-ruler { position: relative; height: 20px; border-bottom: 1px solid var(--panel-edge); }
+.tl-ruler { position: relative; height: 28px; border-bottom: 1px solid var(--panel-edge); cursor: pointer; }
 .tl-tick {
   position: absolute; top: 3px; font-size: 0.7rem; color: var(--ink-dim);
   transform: translateX(3px); font-variant-numeric: tabular-nums;
 }
 .tl-playhead {
-  position: absolute; top: 20px; bottom: 0; width: 2px;
+  position: absolute; top: 28px; bottom: 0; width: 2px;
   background: var(--gold); pointer-events: none; z-index: 5;
 }
 .tl-lane { display: flex; border-bottom: 1px solid #26282f; }
@@ -198,6 +198,64 @@ footer { padding: 1.2rem 1.1rem 1.4rem; color: var(--ink-dim); font-size: 0.85re
 .yt-guide summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 6px 0; }
 .yt-guide ol { margin: 8px 0; padding-left: 22px; font-size: 14.5px; line-height: 1.55; }
 .yt-guide li { margin-bottom: 8px; }
+
+/* --- Pro-upgrade batch (Nov 5 2026) ----------------------------------------
+   Zoom controls, snapping toggle, timecode ruler ticks, marker flags,
+   audio waveforms, shortcuts table, project settings, transport readout. */
+.tl-tools { flex-wrap: wrap; align-items: center; }
+.tl-zoom-label {
+  font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink);
+  min-width: 52px; text-align: center;
+}
+.tool-btn.toggle-on { border-color: var(--gold); color: var(--gold); background: #2c2a20; }
+.tl-tick {
+  border-left: 1px solid #3a3d47; padding-left: 3px; height: 12px;
+}
+.tl-tick-minor {
+  position: absolute; bottom: 0; width: 1px; height: 6px; background: #33353e;
+}
+.tl-marker {
+  position: absolute; top: 0; transform: translateX(-3px);
+  background: none; border: none; padding: 0 1px; margin: 0;
+  font-size: 15px; line-height: 1.1; cursor: pointer; z-index: 4;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6));
+}
+.tl-marker:hover { transform: translateX(-3px) scale(1.25); }
+.tl-marker.selected { outline: 2px solid var(--gold); border-radius: 4px; }
+.tl-block.tl-abs { cursor: ew-resize; touch-action: none; }
+.tl-wave {
+  position: absolute; left: 3px; right: 3px; bottom: 2px;
+  width: calc(100% - 6px); height: 13px; pointer-events: none; opacity: 0.75;
+}
+.tl-wave path { stroke: #cfe8d6; stroke-width: 1; fill: none; vector-effect: non-scaling-stroke; }
+.tl-music-block .tl-wave { height: 16px; }
+.tl-music-block .tl-wave path { stroke: #e6cdf0; }
+.tl-block.has-wave { padding-bottom: 17px; }
+.rate-readout { color: var(--gold); font-weight: 700; min-width: 90px; }
+
+.shortcut-table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+.shortcut-table td { padding: 0.34rem 0.4rem; border-bottom: 1px solid #2c2e36; vertical-align: top; }
+.shortcut-table td:first-child { white-space: nowrap; width: 42%; }
+kbd {
+  font-family: inherit; font-size: 0.82rem; font-weight: 700;
+  background: var(--bg2); border: 1px solid var(--panel-edge);
+  border-bottom-width: 2px; border-radius: 5px; padding: 0.08rem 0.38rem;
+}
+.set-dims { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 0.6rem; }
+@media (max-width: 900px) { .set-dims { grid-template-columns: 1fr; } }
+
+/* Panel headers read as one system; keyboard focus is always visible. */
+.panel h2, .inspector h2 {
+  border-bottom: 1px solid var(--panel-edge); padding-bottom: 0.45rem;
+}
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.tl-scroll::-webkit-scrollbar, .inspector::-webkit-scrollbar, .export-result::-webkit-scrollbar {
+  height: 12px; width: 12px;
+}
+.tl-scroll::-webkit-scrollbar-thumb, .inspector::-webkit-scrollbar-thumb,
+.export-result::-webkit-scrollbar-thumb {
+  background: #3a3d47; border-radius: 6px; border: 2px solid var(--bg2);
+}
 
 /* Social upload kits (TikTok / Instagram) */
 .social-kits { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }

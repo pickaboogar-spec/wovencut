@@ -8,12 +8,14 @@
 // No network calls, no telemetry, no accounts. Files stay on this machine.
 
 import {
-  RULES, baseName, itemStartTimes, migrateProject, newMainItem,
+  RULES, baseName, formatTimecode, itemStartTimes, migrateProject, newMainItem,
   newOverlayItem, projectDuration, sampleProject, emptyProject,
-  syncLockedItems,
+  syncLockedItems, uid,
 } from "./model.js";
 import { TimelineEditor, layerIndex, removeItem, splitMainItemAt } from "./timeline.js";
 import { Preview } from "./preview.js";
+import { History } from "./history.js";
+import { mountSettingsPanel } from "./settings.js";
 import { addCaption, mountCaptionsEditor, retimeCaption, setCaptionText } from "./captions.js";
 import { mountMusicPanel } from "./music.js";
 import { mountExportPanel } from "./export.js";
@@ -26,14 +28,29 @@ const desktop = window.wovencut?.isDesktop ? window.wovencut : null;
 let project = sampleProject();
 let selection = null; // { lane, id }
 
+// Undo/redo (pro-upgrade batch, Nov 5 2026): refresh() records every real
+// change; Ctrl+Z / Ctrl+Shift+Z walk the stacks. See history.js.
+const history = new History();
+history.reset(project);
+
 const preview = new Preview(document.getElementById("preview"));
 preview.load(project);
 
 const readout = document.getElementById("readout");
-preview.onTick = (t) => {
+const rateReadout = document.getElementById("rate-readout");
+function updateReadout(t = preview.currentTime()) {
   const total = projectDuration(project);
-  readout.textContent = `${Math.min(t, total).toFixed(1)}s / ${total}s`;
-  timeline.setPlayhead(Math.min(t, total));
+  const fps = project.settings?.fps ?? 30;
+  const tc = Math.min(Math.max(t, 0), total);
+  readout.textContent = `${formatTimecode(tc, fps)} / ${formatTimecode(total, fps)}`;
+  rateReadout.textContent =
+    preview.playing && preview.rate !== 1
+      ? `${preview.rate > 0 ? "▶▶" : "◀◀"} ${Math.abs(preview.rate)}× speed`
+      : "";
+  return tc;
+}
+preview.onTick = (t) => {
+  timeline.setPlayhead(updateReadout(t));
 };
 
 document.getElementById("open-note").textContent =
@@ -52,20 +69,67 @@ const timeline = new TimelineEditor(document.getElementById("timeline"), {
   onSeek: (t) => preview.seek(t),
 });
 
+// Keep the preview canvas shaped like the project's frame (widescreen,
+// vertical, square) so what you see is the shape you'll export.
+let lastCanvasKey = "";
+function fitCanvasToFrame() {
+  const s = project.settings || { width: 1920, height: 1080 };
+  const key = `${s.width}x${s.height}`;
+  if (key === lastCanvasKey) return;
+  lastCanvasKey = key;
+  const cv = preview.canvas;
+  if (s.width >= s.height) {
+    cv.width = 960;
+    cv.height = Math.max(120, Math.round((960 * s.height) / s.width));
+  } else {
+    cv.height = 960;
+    cv.width = Math.max(120, Math.round((960 * s.width) / s.height));
+  }
+}
+
 function refresh() {
+  history.noteChange(project); // undo history records real changes only
   syncLockedItems(project); // locked pairs follow their main clip
+  fitCanvasToFrame();
   timeline.render();
   renderInspector();
   mountPanels();
   preview.draw(preview.currentTime());
-  readout.textContent =
-    `${Math.min(preview.currentTime(), projectDuration(project)).toFixed(1)}s / ${projectDuration(project)}s`;
+  updateReadout();
+  const undoBtn = document.getElementById("btn-undo");
+  const redoBtn = document.getElementById("btn-redo");
+  if (undoBtn) undoBtn.disabled = !history.canUndo();
+  if (redoBtn) redoBtn.disabled = !history.canRedo();
+}
+
+// Adopt a project handed back by undo/redo (history already points at
+// this exact state, so refresh's noteChange sees no new change).
+function applyRestored(next) {
+  project = next;
+  selection = null;
+  timeline.selection = null;
+  preview.load(project);
+  refresh();
+}
+
+function doUndo() {
+  const prev = history.undo();
+  if (prev) applyRestored(prev);
+}
+
+function doRedo() {
+  const nxt = history.redo();
+  if (nxt) applyRestored(nxt);
 }
 
 function mountPanels() {
+  mountSettingsPanel(project, document.getElementById("panel-settings"), {
+    onChange: refresh,
+  });
   mountCaptionsEditor(project, document.getElementById("panel-captions"));
   mountMusicPanel(project, document.getElementById("panel-music"));
   mountExportPanel(project, document.getElementById("panel-export"), {
+    onChange: refresh,
     runExport: desktop
       ? async (p) => {
           const out = await desktop.saveVideoDialog(`${p.title || "wovencut"}.mp4`);
@@ -295,6 +359,37 @@ function renderInspector() {
     return;
   }
 
+  if (lane === "marker") {
+    const m = (p.markers || []).find((x) => x.id === id);
+    if (!m) return void (selection = null, renderInspector());
+    inspectorBody.innerHTML = `
+      <h3>🚩 Marker</h3>
+      <p class="insp-meta">Sits on the ruler at ${formatTimecode(m.time, p.settings?.fps ?? 30)} (${m.time}s).
+        Markers are your bookmarks — chapters, beats, or "fix this bit later" notes. They never appear in the exported video.</p>
+      <label class="insp-field" title="What this marker means — a chapter name, a beat, a note to yourself">
+        <span class="insp-label">🏷️ Marker name</span>
+        <input type="text" id="f-marker-label" value="${escapeHtml(m.label || "")}" placeholder="e.g. Chapter 2 — the well">
+      </label>
+      ${numField({ id: "f-markertime", icon: "⏱️", label: "At time (seconds)",
+        title: "Move the marker to this time on the ruler", value: m.time })}
+      <div class="insp-actions">
+        <button type="button" class="tool-btn" data-act="jump"
+          title="Move the playhead to this marker">▶️ Jump Playhead Here</button>
+        <button type="button" class="tool-btn danger" data-act="delete"
+          title="Remove this marker from the ruler">🗑️ Delete Marker</button>
+      </div>`;
+    inspectorBody.querySelector("#f-marker-label").addEventListener("change", (e) => {
+      m.label = e.target.value;
+      refresh();
+    });
+    bindNum("f-markertime", (v) => { m.time = Math.max(0, +v.toFixed(2)); });
+    inspectorBody.querySelector('[data-act="jump"]').addEventListener("click", () => {
+      preview.seek(m.time);
+    });
+    wireInspectorActions(lane, id);
+    return;
+  }
+
   if (lane === "music") {
     inspectorBody.innerHTML = `
       <h3>🎵 Music bed</h3>
@@ -348,13 +443,43 @@ function doDelete() {
 }
 
 function doSplit() {
-  if (selection?.lane !== "main") return;
-  const newId = splitMainItemAt(project, selection.id, preview.currentTime());
+  const t = preview.currentTime();
+  // Split the selected main clip at the playhead; if the playhead isn't
+  // inside it, split whichever clip IS under the playhead (the way pro
+  // editors' razor-at-playhead behaves).
+  let targetId = selection?.lane === "main" ? selection.id : null;
+  let newId = targetId ? splitMainItemAt(project, targetId, t) : null;
+  if (!newId) {
+    const starts = itemStartTimes(project);
+    const idx = project.tracks.main.findIndex(
+      (it, i) => t > starts[i] + 0.05 && t < starts[i] + it.duration - 0.05
+    );
+    if (idx === -1) {
+      if (targetId) refresh();
+      return;
+    }
+    targetId = project.tracks.main[idx].id;
+    newId = splitMainItemAt(project, targetId, t);
+  }
   if (newId) {
     selection = { lane: "main", id: newId };
     timeline.selection = selection;
   }
   refresh();
+}
+
+function addMarkerAtPlayhead() {
+  const m = {
+    id: uid("m"),
+    time: +preview.currentTime().toFixed(2),
+    label: "",
+  };
+  (project.markers ||= []).push(m);
+  project.markers.sort((a, b) => a.time - b.time);
+  selection = { lane: "marker", id: m.id };
+  timeline.selection = selection;
+  refresh();
+  inspectorBody.querySelector("#f-marker-label")?.focus();
 }
 
 // --- Toolbar -----------------------------------------------------------------
@@ -380,6 +505,7 @@ $("btn-new").addEventListener("click", () => {
   project = emptyProject();
   selection = null;
   timeline.selection = null;
+  history.reset(project); // a new project starts with a clean undo history
   preview.load(project);
   refresh();
 });
@@ -395,6 +521,7 @@ $("btn-open").addEventListener("click", async () => {
   }
   selection = null;
   timeline.selection = null;
+  history.reset(project);
   preview.load(project);
   refresh();
 });
@@ -404,6 +531,7 @@ $("file-open").addEventListener("change", async (e) => {
   project = migrateProject(JSON.parse(await file.text()));
   selection = null;
   timeline.selection = null;
+  history.reset(project);
   preview.load(project);
   refresh();
 });
@@ -497,6 +625,13 @@ $("file-music").addEventListener("change", async (e) => {
 
 $("btn-split").addEventListener("click", doSplit);
 $("btn-delete").addEventListener("click", doDelete);
+$("btn-undo").addEventListener("click", doUndo);
+$("btn-redo").addEventListener("click", doRedo);
+$("btn-marker").addEventListener("click", addMarkerAtPlayhead);
+$("btn-shortcuts").addEventListener("click", () => {
+  document.getElementById("panel-shortcuts-wrap")
+    .scrollIntoView({ behavior: "smooth", block: "center" });
+});
 $("btn-trim").addEventListener("click", () => {
   const el = inspectorBody.querySelector("#f-trimin") ||
     inspectorBody.querySelector("#f-duration");
@@ -525,15 +660,137 @@ $("btn-Muse").addEventListener("click", () => {
     .scrollIntoView({ behavior: "smooth", block: "center" });
 });
 
+// --- Keyboard shortcuts --------------------------------------------------------
+// The pro transport + edit keys, listed in the ⌨️ Shortcuts panel. All of
+// them pause while the user is typing in a field, so letters never fight
+// captions or names. Space also steps aside for buttons (it "presses" a
+// focused button natively, like every desktop app).
+
+function setPlayButtonLabel() {
+  $("btn-play").innerHTML = preview.playing ? "⏸️ Pause" : "▶️ Play";
+}
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Delete" && selection &&
-      !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) {
-    doDelete();
+  const tag = document.activeElement?.tagName || "";
+  const typing = /INPUT|TEXTAREA|SELECT/.test(tag) ||
+    document.activeElement?.isContentEditable;
+  if (typing) return;
+
+  const fps = project.settings?.fps ?? 30;
+  const t = preview.currentTime();
+  const total = projectDuration(project);
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    if (e.shiftKey) doRedo();
+    else doUndo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+    e.preventDefault();
+    doRedo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    $("btn-save").click();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") {
+    e.preventDefault();
+    $("btn-open").click();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  switch (e.key) {
+    case " ":
+      if (tag === "BUTTON") return; // space presses the focused button
+      e.preventDefault();
+      if (preview.playing) preview.pause();
+      else {
+        if (t >= total) preview.offset = 0;
+        preview.play();
+      }
+      setPlayButtonLabel();
+      updateReadout();
+      break;
+    case "j":
+    case "J": {
+      const r = preview.playing
+        ? (preview.rate < 0 ? Math.max(-4, preview.rate * 2) : -1)
+        : -1;
+      preview.setRate(r);
+      setPlayButtonLabel();
+      updateReadout();
+      break;
+    }
+    case "l":
+    case "L": {
+      const r = preview.playing
+        ? (preview.rate > 0 ? Math.min(4, preview.rate * 2) : 1)
+        : 1;
+      preview.setRate(r);
+      setPlayButtonLabel();
+      updateReadout();
+      break;
+    }
+    case "k":
+    case "K":
+      preview.pause();
+      setPlayButtonLabel();
+      updateReadout();
+      break;
+    case "ArrowLeft":
+      e.preventDefault();
+      preview.seek(t - (e.shiftKey ? 5 : 1));
+      break;
+    case "ArrowRight":
+      e.preventDefault();
+      preview.seek(t + (e.shiftKey ? 5 : 1));
+      break;
+    case ",":
+      preview.seek(t - 1 / fps);
+      break;
+    case ".":
+      preview.seek(t + 1 / fps);
+      break;
+    case "Home":
+      e.preventDefault();
+      preview.seek(0);
+      break;
+    case "End":
+      e.preventDefault();
+      preview.seek(total);
+      break;
+    case "s":
+    case "S":
+      doSplit();
+      break;
+    case "m":
+    case "M":
+      addMarkerAtPlayhead();
+      break;
+    case "n":
+    case "N":
+      timeline.snapping = !timeline.snapping;
+      timeline.render();
+      break;
+    case "+":
+    case "=":
+      timeline.zoomBy(1.25);
+      break;
+    case "-":
+    case "_":
+      timeline.zoomBy(1 / 1.25);
+      break;
+    case "Delete":
+      if (selection) doDelete();
+      break;
   }
 });
 
-mountPanels();
-renderInspector();
+refresh(); // first full render: panels, inspector, timecode, undo state
 
 // The reaction recorder mounts ONCE (not in mountPanels): it holds live
 // camera/recorder state that a refresh must never wipe mid-take.

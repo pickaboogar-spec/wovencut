@@ -26,6 +26,12 @@
     <button type="button" class="tool-btn" id="btn-save"
       title="Save this project to a file so you can reopen it later">
       <span class="ico">💾</span> Save Project</button>
+    <button type="button" class="tool-btn" id="btn-undo"
+      title="Undo the last change — every edit can be undone (keys: Ctrl+Z)">
+      <span class="ico">↩️</span> Undo</button>
+    <button type="button" class="tool-btn" id="btn-redo"
+      title="Redo a change you just undid (keys: Ctrl+Shift+Z)">
+      <span class="ico">↪️</span> Redo</button>
     <span class="tool-sep" aria-hidden="true"></span>
     <button type="button" class="tool-btn primary" id="btn-import"
       title="Import video clips, images or audio from your computer — they land on the timeline (you can also just drag files onto the timeline)">
@@ -33,6 +39,9 @@
     <button type="button" class="tool-btn" id="btn-caption"
       title="Add a caption (words on screen) starting at the playhead — then type its words in the inspector">
       <span class="ico">💬</span> Add Caption</button>
+    <button type="button" class="tool-btn" id="btn-marker"
+      title="Drop a marker flag on the timeline at the playhead — name it in the inspector; markers help you find chapters and beats again (key: M)">
+      <span class="ico">🚩</span> Add Marker</button>
     <button type="button" class="tool-btn" id="btn-music"
       title="Choose a music file to play under the whole video">
       <span class="ico">🎵</span> Add Music</button>
@@ -62,6 +71,9 @@
     <button type="button" class="tool-btn" id="btn-Muse"
       title="Jump to the Muse co-editor panel — your own Muse suggests captions and ordering; nothing applies without your say-so (later phase)">
       <span class="ico">🤖</span> Muse Co-editor</button>
+    <button type="button" class="tool-btn" id="btn-shortcuts"
+      title="See the keyboard shortcuts — the keys that make editing fast">
+      <span class="ico">⌨️</span> Shortcuts</button>
   </nav>
 </header>
 
@@ -74,7 +86,8 @@
           title="Play or pause the preview">▶️ Play</button>
         <button type="button" class="tool-btn" id="btn-restart"
           title="Jump back to the very start and play from there">⟲ Restart</button>
-        <span id="readout" class="readout">0.0s / 0s</span>
+        <span id="readout" class="readout">00:00:00:00 / 00:00:00:00</span>
+        <span id="rate-readout" class="readout rate-readout" title="Playback speed (J / K / L keys)"></span>
       </div>
       <p id="open-note" class="open-note"></p>
     </div>
@@ -92,6 +105,29 @@
 </main>
 
 <section class="panels">
+  <div class="panel" id="panel-settings-wrap">
+    <h2><span class="ico">⚙️</span> Project Settings</h2>
+    <div id="panel-settings"></div>
+  </div>
+  <div class="panel" id="panel-shortcuts-wrap">
+    <h2><span class="ico">⌨️</span> Keyboard Shortcuts</h2>
+    <table class="shortcut-table">
+      <tr><td><kbd>Space</kbd></td><td>Play / pause the preview</td></tr>
+      <tr><td><kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></td><td>Shuttle: J plays backward (press again = faster), K stops, L plays forward (again = faster)</td></tr>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Move the playhead 1 second (hold <kbd>Shift</kbd> for 5 seconds)</td></tr>
+      <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Step one frame back / forward</td></tr>
+      <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>Jump to the start / end of the video</td></tr>
+      <tr><td><kbd>S</kbd></td><td>Split the clip at the playhead</td></tr>
+      <tr><td><kbd>M</kbd></td><td>Add a 🚩 marker at the playhead</td></tr>
+      <tr><td><kbd>N</kbd></td><td>Turn 🧲 snapping on / off</td></tr>
+      <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>Zoom the timeline in / out</td></tr>
+      <tr><td><kbd>Delete</kbd></td><td>Delete the selected clip, item, caption or marker</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo — every change can be undone</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Save project / open project</td></tr>
+    </table>
+    <p class="stub-note">Shortcuts pause while you're typing in a box, so the
+      letter keys never fight your captions.</p>
+  </div>
   <div class="panel" id="panel-captions-wrap">
     <h2><span class="ico">💬</span> Captions</h2>
     <div id="panel-captions"></div>
@@ -119,7 +155,8 @@
 </section>
 
 <footer>
-  <p>Phase 1 desktop build. Free forever — see README.md and WORKFLOW.md.
+  <p>Beta build — Phase 1 desktop editor with the professional-upgrade batch
+     (Nov 5 2026). Free forever — see README.md and WORKFLOW.md.
      Your files never leave this computer.</p>
 </footer>
 

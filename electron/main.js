@@ -143,6 +143,22 @@ function registerIpc() {
     return res.filePath;
   });
 
+  // Waveform decoding (pro-upgrade batch, Nov 5 2026): the renderer draws
+  // real audio waveforms for imported clips. It needs the file's bytes to
+  // decode peaks — only ever for paths the user picked in a dialog or
+  // dropped onto the timeline themselves. Capped at 512 MB; the bytes
+  // stay in this process pair and are never written or sent anywhere.
+  ipcMain.handle("file:readBytes", async (_event, filePath) => {
+    try {
+      if (typeof filePath !== "string" || !filePath) return null;
+      const stat = await fs.promises.stat(filePath);
+      if (!stat.isFile() || stat.size > 512 * 1024 * 1024) return null;
+      return await fs.promises.readFile(filePath);
+    } catch {
+      return null;
+    }
+  });
+
   ipcMain.handle("dialog:saveVideo", async (_event, defaultName) => {
     const res = await dialog.showSaveDialog({
       title: "Export video",

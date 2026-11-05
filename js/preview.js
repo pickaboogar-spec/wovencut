@@ -24,38 +24,68 @@ export class Preview {
     this.offset = 0;
     this.raf = null;
     this.onTick = null;
+    // Shuttle rate for J/K/L transport (pro-upgrade batch, Nov 5 2026):
+    // 1 = normal forward; L presses speed up (2×, 4×), J plays BACKWARD
+    // (−1×, −2×, −4×) — possible because preview frames are drawn
+    // procedurally, so any instant can be rendered in either direction.
+    this.rate = 1;
   }
 
   load(project) {
     this.project = project;
     this.offset = 0;
+    this.rate = 1;
     this.draw(0);
   }
 
   play() {
     if (!this.project || this.playing) return;
+    if (this.rate === 0) this.rate = 1;
     this.playing = true;
-    this.startedAt = performance.now() - this.offset * 1000;
+    this.startedAt = performance.now();
     const loop = (now) => {
       if (!this.playing) return;
-      const t = (now - this.startedAt) / 1000;
+      const t = this.currentTime();
       this.draw(t);
       if (this.onTick) this.onTick(t);
+      const total = projectDuration(this.project);
+      if ((this.rate > 0 && t >= total) || (this.rate < 0 && t <= 0)) {
+        this.pause();
+        if (this.onTick) this.onTick(this.currentTime());
+        return;
+      }
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
   }
 
   pause() {
+    const wasPlaying = this.playing;
     this.playing = false;
     if (this.raf) cancelAnimationFrame(this.raf);
-    if (this.project) {
-      this.offset = Math.min(this.currentTime(), projectDuration(this.project));
+    if (this.project && wasPlaying) {
+      const total = projectDuration(this.project);
+      this.offset = Math.max(0, Math.min(this.currentTime(), total));
     }
+    this.rate = 1;
+  }
+
+  // Set the shuttle rate while playing (J/L). 0 pauses.
+  setRate(r) {
+    if (!this.project) return;
+    if (r === 0) {
+      this.pause();
+      return;
+    }
+    this.offset = this.currentTime();
+    this.startedAt = performance.now();
+    this.rate = r;
+    if (!this.playing) this.play();
   }
 
   restart() {
     this.offset = 0;
+    this.rate = 1;
     this.startedAt = performance.now();
     this.draw(0);
     if (!this.playing) this.play();
@@ -64,14 +94,14 @@ export class Preview {
   seek(t) {
     const total = this.project ? projectDuration(this.project) : 0;
     this.offset = Math.max(0, Math.min(t, total));
-    if (this.playing) this.startedAt = performance.now() - this.offset * 1000;
+    if (this.playing) this.startedAt = performance.now();
     this.draw(this.offset);
     if (this.onTick) this.onTick(this.offset);
   }
 
   currentTime() {
     if (!this.playing) return this.offset;
-    return (performance.now() - this.startedAt) / 1000;
+    return this.offset + ((performance.now() - this.startedAt) / 1000) * this.rate;
   }
 
   // Alpha of a main-track item at a point inside it: its own fade-in and

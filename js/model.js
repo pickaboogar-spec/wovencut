@@ -153,6 +153,14 @@ export function emptyProject(title = "Untitled video") {
   return {
     version: 3,
     title,
+    // Project settings (pro-upgrade batch, Nov 5 2026): the frame the
+    // video is made for. Export presets can override at export time;
+    // the first-frame rule applies to every preset equally.
+    settings: { width: 1920, height: 1080, fps: 30 },
+    // Timeline markers: named flags on the ruler ({ id, time, label })
+    // for chapters, beats, and "fix this later" notes.
+    markers: [],
+    exportPreset: "youtube-1080",
     tracks: { main: [], layers: [[]], background: [] },
     captions: [],
     music: { src: null, volume: 0.8 },
@@ -205,6 +213,10 @@ export function sampleProject() {
     creator: "@valleywalks",
     url: "",
   };
+  p.markers = [
+    { id: uid("m"), time: 4, label: "Herb rows — crossfade in" },
+    { id: uid("m"), time: 10, label: "The well scene" },
+  ];
   p.captions = [
     { id: uid("t"), start: 0, end: 4, text: "The gate is open." },
     { id: uid("t"), start: 4, end: 8, text: "The rows remember every hand that planted them." },
@@ -289,6 +301,9 @@ export function migrateProject(project) {
     project.tracks.layers = project.tracks.layers?.length ? project.tracks.layers : [[]];
     project.tracks.background = project.tracks.background || [];
     project.sourceCredit = project.sourceCredit || { title: "", creator: "", url: "" };
+    project.settings = { width: 1920, height: 1080, fps: 30, ...(project.settings || {}) };
+    project.markers = project.markers || [];
+    project.exportPreset = project.exportPreset || "youtube-1080";
     return project;
   }
   if (project.version === 2) {
@@ -296,6 +311,9 @@ export function migrateProject(project) {
     project.tracks.background = [];
     delete project.tracks.overlay;
     project.sourceCredit = project.sourceCredit || { title: "", creator: "", url: "" };
+    project.settings = { width: 1920, height: 1080, fps: 30, ...(project.settings || {}) };
+    project.markers = project.markers || [];
+    project.exportPreset = project.exportPreset || "youtube-1080";
     project.version = 3;
     return project;
   }
@@ -310,9 +328,39 @@ export function migrateProject(project) {
   return {
     version: 3,
     title: project.title || "Untitled video",
+    settings: { width: 1920, height: 1080, fps: 30 },
+    markers: [],
+    exportPreset: "youtube-1080",
     tracks: { main, layers: [[]], background: [] },
     captions: (project.captions || []).map((c) => ({ id: uid("t"), ...c })),
     music: project.music || { src: null, volume: 0.8 },
     sourceCredit: { title: "", creator: "", url: "" },
   };
+}
+
+// --- Timecode ----------------------------------------------------------------
+// Pro editors label the ruler in timecode: HH:MM:SS:FF at the project's
+// frame rate. WovenCut shows the same format so the timeline reads like a
+// professional one (and frame-stepping with , and . keys lands exactly).
+
+export function formatTimecode(t, fps = 30) {
+  const safe = Math.max(0, t || 0);
+  const totalFrames = Math.floor(safe * fps);
+  const ff = totalFrames % fps;
+  const totalSeconds = Math.floor(totalFrames / fps);
+  const ss = totalSeconds % 60;
+  const mm = Math.floor(totalSeconds / 60) % 60;
+  const hh = Math.floor(totalSeconds / 3600);
+  const p2 = (n) => String(n).padStart(2, "0");
+  return `${p2(hh)}:${p2(mm)}:${p2(ss)}:${p2(ff)}`;
+}
+
+// Short clock for ruler ticks: MM:SS under an hour, H:MM:SS beyond.
+export function formatClock(t) {
+  const safe = Math.max(0, Math.floor(t || 0));
+  const ss = safe % 60;
+  const mm = Math.floor(safe / 60) % 60;
+  const hh = Math.floor(safe / 3600);
+  const p2 = (n) => String(n).padStart(2, "0");
+  return hh > 0 ? `${hh}:${p2(mm)}:${p2(ss)}` : `${p2(mm)}:${p2(ss)}`;
 }
