@@ -25,6 +25,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildFfmpegArgs, planExport } from "../js/export.js";
 import { buildRenderArgs } from "../js/render.js";
 import { captionsToSrt } from "../js/captions.js";
+// Wi-Fi camera (Paul, Nov 5 2026): the same reuse rule — the arg
+// builders and parsers the node tests verify are the ones this process
+// spawns and reads.
+import {
+  newCamera, validateCamera, buildRtspUrl, buildCaptureArgs,
+  buildFfprobeArgs, parseFfmpegProbeText, parseFfprobeJson,
+  summarizeProbe, classifyNetcamError, maskRtspUrl, PROBE_TIMEOUT_MS,
+} from "../js/netcam.js";
 
 let mainWindow = null;
 
@@ -332,6 +340,193 @@ function registerIpc() {
           ? `\n\n⚠️ Honest notes:\n- ${built.warnings.join("\n- ")}`
           : ""),
     };
+  });
+
+  // --- Wi-Fi camera (RTSP) — test + record (Paul, Nov 5 2026) ----------------
+  // OBS-style network-camera ingest, record-first: Test Connection probes
+  // the stream (ffprobe when one is on the PATH; the bundled ffmpeg's
+  // `-i` listing otherwise — ffmpeg-static ships no ffprobe), and Record
+  // captures the stream to an .mkv with the app's own FFmpeg via stream
+  // copy. Events: "netcam:progress" { elapsedSec } while capturing and
+  // "netcam:finished" { ok, filePath?, durationSec?, kind?, message? }.
+  // The camera record is re-validated HERE — the main process never
+  // trusts renderer-supplied fields — and the password is never logged
+  // (status text uses maskRtspUrl).
+
+  let ffprobeBinCache = undefined; // undefined = untested, null = absent
+  async function resolveFfprobe() {
+    if (ffprobeBinCache !== undefined) return ffprobeBinCache;
+    const probe = spawn("ffprobe", ["-version"], { shell: process.platform === "win32" });
+    const ok = await new Promise((res) => {
+      probe.on("error", () => res(false));
+      probe.on("close", (code) => res(code === 0));
+    });
+    return (ffprobeBinCache = ok ? "ffprobe" : null);
+  }
+
+  function spawnCapture(bin, args, timeoutMs) {
+    return new Promise((resolve) => {
+      const child = spawn(bin, args, { shell: process.platform === "win32" });
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        child.kill();
+      }, timeoutMs);
+      child.stdout.on("data", (d) => { stdout += d; });
+      child.stderr.on("data", (d) => {
+        stderr += d;
+        if (stderr.length > 100000) stderr = stderr.slice(-100000);
+      });
+      child.on("error", (err) => {
+        clearTimeout(timer);
+        resolve({ code: -1, stdout, stderr: stderr || String(err), timedOut });
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        resolve({ code, stdout, stderr, timedOut });
+      });
+    });
+  }
+
+  function checkedCamera(input) {
+    const cam = newCamera({
+      name: input?.name, host: input?.host, port: input?.port,
+      path: input?.path, username: input?.username, password: input?.password,
+    });
+    const problems = validateCamera(cam);
+    return { cam, problems };
+  }
+
+  ipcMain.handle("netcam:test", async (_event, input) => {
+    const { cam, problems } = checkedCamera(input);
+    if (problems.length) {
+      return { ok: false, kind: "invalid", message: problems.join(" ") };
+    }
+    const bin = await resolveFfmpeg();
+    if (!bin) {
+      return {
+        ok: false, kind: "unknown",
+        message: "No FFmpeg found (the bundled binary is missing and no system ffmpeg is on the PATH), so WovenCut can't reach out to the camera yet.",
+      };
+    }
+    // Prefer real ffprobe JSON; fall back to the ffmpeg -i stream list.
+    const ffprobe = await resolveFfprobe();
+    if (ffprobe) {
+      const r = await spawnCapture(ffprobe, buildFfprobeArgs(cam), PROBE_TIMEOUT_MS);
+      const probe = parseFfprobeJson(r.stdout);
+      if (probe.video) return { ok: true, probe, summary: summarizeProbe(probe) };
+      const cls = classifyNetcamError(r.timedOut ? "Operation timed out" : r.stderr);
+      return { ok: false, kind: cls.kind, message: cls.message };
+    }
+    const r = await spawnCapture(
+      bin, ["-hide_banner", "-rtsp_transport", "tcp", "-i", buildRtspUrl(cam)],
+      PROBE_TIMEOUT_MS
+    );
+    const probe = parseFfmpegProbeText(r.stderr);
+    if (probe.video) return { ok: true, probe, summary: summarizeProbe(probe) };
+    const cls = classifyNetcamError(r.timedOut ? "Operation timed out" : r.stderr);
+    return { ok: false, kind: cls.kind, message: cls.message };
+  });
+
+  let currentCapture = null;
+
+  ipcMain.handle("netcam:start", async (_event, input, opts = {}) => {
+    const { cam, problems } = checkedCamera(input);
+    if (problems.length) {
+      return { ok: false, kind: "invalid", message: problems.join(" ") };
+    }
+    if (currentCapture) {
+      return {
+        ok: false, kind: "busy",
+        message: "A Wi-Fi camera recording is already running — press Stop on it before starting another.",
+      };
+    }
+    const bin = await resolveFfmpeg();
+    if (!bin) {
+      return {
+        ok: false, kind: "unknown",
+        message: "No FFmpeg found (the bundled binary is missing and no system ffmpeg is on the PATH), so the recording can't start.",
+      };
+    }
+    // Recordings land in the user's Videos folder, in a WovenCut folder
+    // of their own — the same posture as exports: a real file, theirs.
+    let recDir = path.join(app.getPath("videos"), "WovenCut Recordings");
+    try {
+      await fs.promises.mkdir(recDir, { recursive: true });
+    } catch {
+      recDir = app.getPath("userData");
+    }
+    const slug = (cam.name || cam.host || "camera")
+      .replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 40) || "camera";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const outPath = path.join(recDir, `wifi-camera-${slug}-${stamp}.mkv`);
+    const durationSec = Math.max(0, Math.floor(Number(opts?.durationSec) || 0));
+    const args = buildCaptureArgs(cam, outPath, { durationSec });
+
+    const child = spawn(bin, args, { shell: process.platform === "win32" });
+    const cap = {
+      child, outPath, startedAt: Date.now(), stoppedByUser: false,
+      cameraName: cam.name || cam.host, stderr: "",
+    };
+    currentCapture = cap;
+    child.stderr.on("data", (d) => {
+      cap.stderr += d;
+      if (cap.stderr.length > 100000) cap.stderr = cap.stderr.slice(-100000);
+      const m = /time=(\d+):(\d+):([\d.]+)/.exec(String(d));
+      if (m) {
+        const t = +m[1] * 3600 + +m[2] * 60 + +m[3];
+        mainWindow?.webContents.send("netcam:progress", { elapsedSec: +t.toFixed(1) });
+      }
+    });
+    const finish = async (spawnError, closeCode) => {
+      if (currentCapture !== cap) return;
+      currentCapture = null;
+      const duration = +(((Date.now() - cap.startedAt) / 1000)).toFixed(1);
+      let size = 0;
+      try {
+        size = (await fs.promises.stat(cap.outPath)).size;
+      } catch { /* file never appeared */ }
+      // Success = the run ended cleanly (duration reached, exit 0) or
+      // the user pressed Stop ("q" also exits 0; the kill fallback does
+      // not, so stoppedByUser vouches for it) AND a real file exists.
+      // A refused stream can leave a stub header behind — size alone
+      // must never be allowed to call that a recording.
+      if (!spawnError && size > 0 && (cap.stoppedByUser || closeCode === 0)) {
+        mainWindow?.webContents.send("netcam:finished", {
+          ok: true, filePath: cap.outPath, durationSec: duration,
+          cameraName: cap.cameraName,
+        });
+        return;
+      }
+      const cls = classifyNetcamError(spawnError ? String(spawnError) : cap.stderr);
+      mainWindow?.webContents.send("netcam:finished", {
+        ok: false, kind: cls.kind, cameraName: cap.cameraName,
+        message: cls.message,
+        address: maskRtspUrl(buildRtspUrl(cam)),
+      });
+    };
+    child.on("error", (err) => finish(err, -1));
+    child.on("close", (code) => finish(null, code));
+    return { ok: true, filePath: outPath };
+  });
+
+  ipcMain.handle("netcam:stop", async () => {
+    if (!currentCapture) return false;
+    const cap = currentCapture;
+    cap.stoppedByUser = true;
+    try {
+      cap.child.stdin.write("q"); // ffmpeg's own graceful stop: trailer written, file kept
+    } catch { /* stdin already gone — the kill below covers it */ }
+    setTimeout(() => {
+      if (currentCapture === cap) cap.child.kill();
+    }, 4000);
+    return true;
+  });
+
+  app.on("before-quit", () => {
+    if (currentCapture) currentCapture.child.kill();
   });
 }
 

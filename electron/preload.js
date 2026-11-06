@@ -48,6 +48,24 @@ contextBridge.exposeInMainWorld("wovencut", {
     ipcRenderer.on("export:progress", (_event, data) => cb(data));
   },
 
+  // Wi-Fi camera (Paul, Nov 5 2026): test an RTSP camera and record its
+  // stream through the main process's FFmpeg. Events arrive as
+  // { type: "progress", elapsedSec } and
+  // { type: "finished", ok, filePath?, durationSec?, kind?, message? }.
+  // Re-subscribing replaces the previous subscription — the panel
+  // mounts once, but the rule matches onExportProgress.
+  testNetcam: (camera) => ipcRenderer.invoke("netcam:test", camera),
+  startNetcam: (camera, opts) => ipcRenderer.invoke("netcam:start", camera, opts),
+  stopNetcam: () => ipcRenderer.invoke("netcam:stop"),
+  onNetcamEvent: (cb) => {
+    ipcRenderer.removeAllListeners("netcam:progress");
+    ipcRenderer.removeAllListeners("netcam:finished");
+    ipcRenderer.on("netcam:progress", (_event, data) =>
+      cb({ type: "progress", ...data }));
+    ipcRenderer.on("netcam:finished", (_event, data) =>
+      cb({ type: "finished", ...data }));
+  },
+
   // Terms gate (pro pass 2 legal audit): declining the Terms closes the
   // app — the main process owns quitting; the renderer just asks.
   declineTerms: () => ipcRenderer.invoke("terms:decline"),
