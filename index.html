@@ -49,8 +49,11 @@
       title="Set up a reaction video: the video you're reacting to plays on the main track, your camera sits in a corner window over it, and the two are LOCKED together so they stay in sync when clips move">
       <span class="ico">📺</span> Reaction Video</button>
     <button type="button" class="tool-btn" id="btn-record"
-      title="Record a reaction live: watch the video here while your webcam records you reacting — the app tracks where the video is at and syncs the two takes automatically">
+      title="Record a reaction live: watch the video here while your webcam or USB camera records you reacting — the app tracks where the video is at and syncs the two takes automatically">
       <span class="ico">🔴</span> Record Reaction</button>
+    <button type="button" class="tool-btn" id="btn-netcam"
+      title="Jump to the Wi-Fi Camera panel — record a network camera (like a TP-Link Tapo) over your home Wi-Fi, the way OBS records a camera source">
+      <span class="ico">📡</span> Wi-Fi Camera</button>
     <span class="tool-sep" aria-hidden="true"></span>
     <button type="button" class="tool-btn" id="btn-split"
       title="Split the selected clip into two at the playhead, so you can treat each half separately">
@@ -167,8 +170,12 @@
     <div id="panel-Muse"></div>
   </div>
   <div class="panel panel-wide" id="panel-reaction-wrap">
-    <h2><span class="ico">🔴</span> Record a Reaction — webcam, auto-synced</h2>
+    <h2><span class="ico">🔴</span> Record a Reaction — webcam or USB camera, auto-synced</h2>
     <div id="panel-reaction"></div>
+  </div>
+  <div class="panel panel-wide" id="panel-netcam-wrap">
+    <h2><span class="ico">📡</span> Wi-Fi Camera — record from a network camera</h2>
+    <div id="panel-netcam"></div>
   </div>
 </section>
 

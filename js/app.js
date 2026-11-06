@@ -22,6 +22,7 @@ import { mountExportPanel } from "./export.js";
 import { mountReplicatePanel } from "./replicate.js";
 import { mountClaudePanel } from "./muse.js";
 import { mountReactionPanel } from "./reaction.js";
+import { mountWifiCameraPanel } from "./netcam-panel.js";
 import {
   addSnapshot, clearAutosave, formatWhen, mountAutosavePanel, readAutosave,
   safeStorage, writeAutosave,
@@ -744,6 +745,10 @@ $("btn-record").addEventListener("click", () => {
   document.getElementById("panel-reaction-wrap")
     .scrollIntoView({ behavior: "smooth", block: "center" });
 });
+$("btn-netcam").addEventListener("click", () => {
+  document.getElementById("panel-netcam-wrap")
+    .scrollIntoView({ behavior: "smooth", block: "center" });
+});
 $("btn-segue").addEventListener("click", () => {
   document.getElementById("panel-replicate-wrap")
     .scrollIntoView({ behavior: "smooth", block: "center" });
@@ -934,6 +939,20 @@ mountReactionPanel(document.getElementById("panel-reaction"), {
   getProject: () => project,
   desktop,
   onPairCreated: (sel) => {
+    selection = sel;
+    timeline.selection = sel;
+    refresh();
+  },
+});
+
+// The Wi-Fi camera panel also mounts ONCE: it holds the in-flight
+// recording state (and the main process's event subscription), so a
+// refresh must never remount it either.
+mountWifiCameraPanel(document.getElementById("panel-netcam"), {
+  getProject: () => project,
+  desktop,
+  onProjectChanged: () => refresh(),
+  onRecordingAdded: (sel) => {
     selection = sel;
     timeline.selection = sel;
     refresh();
