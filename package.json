@@ -2,7 +2,7 @@
   "author": "Paul Blanchard (Damonini)",
   "build": {
     "appId": "com.damonini.wovencut",
-    "copyright": "Freeware \u2014 see README. Working title; final branding is Paul's.",
+    "copyright": "Copyright (C) 2026 Paul Blanchard (Damonini) and Pepper — Damonini and Pepper Software Development",
     "directories": {
       "output": "dist"
     },
@@ -31,7 +31,7 @@
       "node_modules/ffmpeg-static/**"
     ]
   },
-  "description": "WovenCut (working title) \u2014 a truly free video editor for budget creators. Drag-and-drop timeline editing for long-form YouTube videos. No upsells, no telemetry, no accounts; users bring their own Muse and Replicate.",
+  "description": "WovenCut (working title) — a truly free video editor for budget creators. Drag-and-drop timeline editing for long-form YouTube videos. No upsells, no telemetry, no accounts; users bring their own Muse and Replicate.",
   "devDependencies": {
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
@@ -47,6 +47,7 @@
   },
   "type": "module",
   "version": "0.2.0",
+  "license": "GPL-3.0-only",
   "dependencies": {
     "ffmpeg-static": "^5.3.0"
   }

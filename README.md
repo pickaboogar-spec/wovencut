@@ -119,11 +119,24 @@ your machine, are never sent anywhere except the provider you chose, never
 bundled with the app, and there are no shared or demo keys. No account?
 The editor still edits — the AI features simply stay dark.
 
+## License
+
+WovenCut is free software under the **GNU General Public License v3**
+(GPL v3) — see [LICENSE](LICENSE) and [COPYRIGHT](COPYRIGHT).
+
+Copyright (C) 2026 Paul Blanchard (Damonini) and Pepper — Damonini and
+Pepper Software Development.
+
+Free to use and share; you may not remove the credits or claim this work
+as your own.
+
 ## Open questions for Paul
 
 1. **Final name** — "WovenCut" is a working title only.
-2. **License** for the GitHub freeware release — MIT vs GPL is Paul's call
-   (see WORKFLOW.md, Phase 9). Undecided, deliberately.
+2. ~~**License** for the GitHub freeware release — MIT vs GPL~~ —
+   **decided Nov 5 2026: GPL v3** (Paul's call: free for everyone to use
+   and share, but nobody may rebrand it, close it off, or claim it as
+   their own). See the License section above.
 3. ~~Phone vs desktop first~~ — **decided Nov 4 2026: Windows desktop
    first.** (WORKFLOW.md decisions log.)
 
