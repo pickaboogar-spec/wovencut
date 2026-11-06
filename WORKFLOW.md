@@ -175,6 +175,83 @@ recorded") before the next phase starts.
   import/export; loudness −14 LUFS (with Phase 4); music ducking;
   ~12-type transitions menu; ripple trim Q/W; per-lane Lock/Hide/Mute.
 
+### Phase 1c — Wi-Fi camera recording + USB camera picker *(built 2026-11-05, Paul's direction)*
+- Paul's ask, same day as the camera questions: "make sure it can work
+  like OBS Studio so it can import the Wi-Fi signals from my Tapo
+  cameras" — plus his AKASO EK7000 action camera live-recording over
+  USB. Built BEFORE the first GitHub release build, per his sequencing.
+- **Wi-Fi camera source (📡 panel, `js/netcam.js` + `js/netcam-panel.js`):**
+  a camera is saved into the project (`project.cameras` — name, host,
+  port, stream path, camera-account username/password; migration fills
+  `cameras: []` for older files). Generic RTSP by design — Tapo is the
+  expected case, any RTSP/ONVIF-style camera uses the same fields.
+  **🔌 Test Connection** probes the stream (ffprobe if one is on the
+  PATH, else the bundled ffmpeg's `-i` stream list — ffmpeg-static
+  ships no ffprobe) and reports picture size / fps / codecs **in plain
+  words**; failures are classified into plain-language states (camera
+  unreachable, wrong username/password, unknown stream path) — never
+  silent, never a crash. **🔴 Record** captures via the app's existing
+  FFmpeg plumbing (`-rtsp_transport tcp`, `-map` video + optional
+  audio, `-c copy` into .mkv — stream copy means no re-encode and, by
+  construction, no filters, so no fade can ever enter a recording) for
+  a user-set number of minutes or until ⏹️ Stop (ffmpeg's graceful
+  `q`, trailer written); the finished take lands on the main track
+  exactly like a recorded clip, saved under the user's Videos folder
+  in "WovenCut Recordings". The password is masked everywhere it could
+  be displayed (`maskRtspUrl`) and lives only in the user's project
+  file on their own machine.
+- **HONEST LIMIT (in the panel copy, the guide, and here):** there is
+  NO live low-latency monitoring of the Wi-Fi feed inside the preview —
+  the preview is still Phase 3 placeholder frames. This pass is: add
+  camera → test connection → record the feed into the project.
+- **USB cameras (reaction recorder):** the recorder previously just
+  grabbed the default camera. It now has a device picker — "📷 Camera
+  to record from — Webcam / USB Camera" — listing every video device
+  Windows exposes (built-in webcam, USB webcam, action camera in PC
+  Camera mode), via `enumerateDevices` + `deviceId` constraints on the
+  existing `getUserMedia` path, with a 🔄 Refresh Camera List button
+  and `devicechange` re-reads. Generic UVC on purpose; NO
+  AKASO-specific integration. Panel copy and headings generalised from
+  "webcam" to "Webcam / USB Camera".
+- **Using a Wi-Fi camera (like OBS) — the Tapo setup, as written in
+  the in-app guide.** These are the user's own steps, in the Tapo app,
+  on their own network:
+  1. Tapo app → open the camera → ⚙️ settings → *Advanced Settings* →
+     *Camera Account* (RTSP): create a username + password that live
+     in the camera. NOT the Tapo app login — Test Connection refuses
+     the login if they're mixed up.
+  2. Find the camera's IP (Tapo app device info, or the router's
+     device list), e.g. 192.168.1.50.
+  3. In WovenCut's 📡 panel: IP in 📍 Camera address, camera-account
+     username/password in their boxes, port **554**, stream
+     **/stream1** (best quality; the full address reads
+     `rtsp://<user>:<pass>@<ip>:554/stream1`) or **/stream2** (the
+     smaller feed, gentler on weak Wi-Fi).
+  4. 🔌 Test Connection → plain-words report; then 🔴 Record.
+- **Using an action camera — AKASO EK7000 (Paul's, confirmed by
+  photo):** USB in → on the camera's screen choose **PCCAM** (PC
+  Camera), NOT **MSDC** (Mass Storage = card reader, can't record) →
+  🔄 Refresh Camera List → pick it → record. Honest note carried in
+  the guide: the EK7000's PCCAM feed is standard webcam resolution
+  (fine for reaction / picture-in-picture); its full 4K is recorded
+  to its microSD card and imported as files — Import Clips already
+  does that. Its Wi-Fi app stream is not a standard feed, so USB is
+  the reliable route (also: USB power on most models, no Wi-Fi lag).
+- **Verified:** node suite extended (URL build/parse incl. hostile
+  passwords, validation messages, mask never leaks the password,
+  capture/probe arg shapes, ffmpeg-text + ffprobe-JSON probe parsers,
+  plain-words summaries, error classification, `cameras` migration) —
+  ALL NODE TESTS PASSED; render suite still green. Real-ffmpeg
+  checks in the dev VM: the capture args against a dead address
+  produce stderr the classifier turns into the correct plain-words
+  "unreachable" message, and the same `-map`/`-c copy` tail remuxing
+  a local file preserves video+audio into a playable .mkv. A live
+  RTSP *server* could not be stood up in the VM (ffmpeg's `listen`
+  mode is a publisher-input, not a client server; no mediamtx /
+  GStreamer present), so no live-camera end-to-end is claimed — the
+  first real proof is Paul's own Tapo on his network. The .exe is
+  still unbuilt (same Phase 1 gate).
+
 ### Phase 2 — Captions, full editor
 - ~~Drag captions to retime on the lane~~ *(delivered early in Phase 1b)*;
   per-segment caption timing; save/load polish (ffprobe-accurate
@@ -370,3 +447,26 @@ FOLLOWS something in the frame.
   `~/workspace/your_files/wovencut-pro-pass-2-log.md`. Still NOT run:
   the Electron GUI and the .exe (same Phase 1 gate). Drive mirror of
   the Code Vault still owed (batched; not part of this session).
+- **2026-11-05 — Phase 1c camera pass delivered for review (Paul's
+  direction, same evening).** Two asks folded into one pass: (1) "work
+  like OBS Studio" for his TP-Link Tapo Wi-Fi cameras — a 📡 Wi-Fi
+  Camera panel: save a camera into the project, 🔌 Test Connection
+  with a plain-words report (size/fps/codecs) or a plain-words failure
+  (unreachable / wrong camera-account password / unknown stream
+  path), 🔴 Record the RTSP feed (with sound) through the existing
+  FFmpeg plumbing for a set number of minutes or until Stop, take
+  lands on the main track. Generic RTSP, no Tapo-specific code.
+  (2) His AKASO EK7000 (model confirmed by his photo) live-recording
+  over USB — the reaction recorder gained a "Webcam / USB Camera"
+  device picker (it previously took the default camera blindly) and
+  an exact EK7000 guide: choose **PCCAM**, not **MSDC**, on the
+  camera's screen; PCCAM is webcam-resolution (fine for reaction /
+  PiP) while full 4K lives on the microSD and imports as files.
+  HONEST LIMITS stated in-app and in WORKFLOW Phase 1c: no live
+  Wi-Fi picture inside the preview (Phase 3 placeholders stand);
+  no live RTSP end-to-end could be run in the dev VM (no RTSP
+  server available), so node-suite + real-ffmpeg error/mapping
+  checks carry the verification, and the first true proof is Paul's
+  Tapo on his own network. Terms text untouched; beta labels kept;
+  first-frame rule untouched (capture args are filter-free by
+  construction, asserted in tests).

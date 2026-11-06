@@ -64,6 +64,14 @@ fade only if you mean to.
   or written as a sidecar .srt. Layer/background lanes and green-screen
   keying are not in render v1; the app warns instead of dropping them
   silently.
+- **Wi-Fi camera recording (Phase 1c):** save a network camera (RTSP —
+  TP-Link Tapo and friends) into the project, test the connection with
+  a plain-words report of what it's sending, and record its feed (with
+  sound) straight onto the timeline, OBS-style. The reaction recorder
+  also takes **any USB camera** now — built-in webcam, USB webcam, or
+  an action camera in PC Camera mode (an AKASO EK7000 chooses
+  **PCCAM**, not MSDC, on its own screen). Live *watching* of a Wi-Fi
+  feed inside the preview is not built; this records it.
 
 ### Honestly stubbed (labelled in the app, planned in WORKFLOW.md)
 | Piece | Status |
@@ -72,6 +80,7 @@ fade only if you mean to.
 | Muse co-editor | Panel + suggestion interface; wiring is Phase 6, on your own Muse. |
 | Shirt-logo overlay, trademark blur | Later phases (7–8): keyframed tracking first, assisted tracking last. Blurring is a convenience, never a legal guarantee. |
 | Real media in preview | The preview still draws labelled placeholder frames; real decoded playback is Phase 3. Waveforms ARE decoded from your real files. |
+| Live picture from a Wi-Fi camera | Not built — the 📡 Wi-Fi Camera panel *records* the feed into your project (and tests the connection in plain words); watching it live in the preview waits on Phase 3's real-media preview. |
 
 ### Project format (v3)
 Plain JSON: `tracks.main` (clips with `trimIn`, `fadeIn`, `fadeOut`,
@@ -79,7 +88,9 @@ Plain JSON: `tracks.main` (clips with `trimIn`, `fadeIn`, `fadeOut`,
 `generated: true`), `tracks.layers` (stackable PiP lanes with `start`,
 `corner`, `sizePct`), `tracks.background`, `captions` (timed in
 seconds; SRT import/export), `music` (a file reference plus volume and
-ducking), `markers`, and `laneState` (per-lane hide/mute). See
+ducking), `markers`, `cameras` (saved Wi-Fi/RTSP cameras — address
+plus camera-account credentials, kept in the file on your own machine
+only), and `laneState` (per-lane hide/mute). See
 `js/model.js`.
 
 ## Run it (development)
