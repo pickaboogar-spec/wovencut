@@ -1,3 +1,8 @@
+// WovenCut — a truly free video editor.
+// Copyright (C) 2026 Paul Blanchard (Damonini) and Pepper —
+// Damonini and Pepper Software Development.
+// This program is free software under the GNU General Public License
+// v3.0; see the LICENSE file at the project root.
 // WovenCut (working title) — project data model (v3, layered timeline)
 // ---------------------------------------------------------------------------
 // LAYERING (Paul, Nov 4 2026): the timeline is a stack of layers, top to

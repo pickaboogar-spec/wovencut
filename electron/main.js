@@ -1,3 +1,8 @@
+// WovenCut — a truly free video editor.
+// Copyright (C) 2026 Paul Blanchard (Damonini) and Pepper —
+// Damonini and Pepper Software Development.
+// This program is free software under the GNU General Public License
+// v3.0; see the LICENSE file at the project root.
 // WovenCut (working title) — Electron main process
 // ---------------------------------------------------------------------------
 // Windows desktop shell for the editor (Phase 1 pivot, Paul's decision
