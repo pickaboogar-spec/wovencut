@@ -319,4 +319,155 @@ import {
   assert.equal(isAcceptanceCurrent(fake), false, "a changed text fingerprint re-runs the gate");
 }
 
+// --- Wi-Fi camera (RTSP) core (Paul, Nov 5 2026) ------------------------------
+// Argument-level and parser tests only — the suite never needs a real
+// camera. Capture uses -c copy (stream copy), so there are no filters
+// in the args at all: a recording can never gain a fade-in.
+import {
+  newCamera, buildRtspUrl, parseRtspUrl, validateCamera, maskRtspUrl,
+  buildCaptureArgs, buildFfprobeArgs, parseFfmpegProbeText,
+  parseFfprobeJson, summarizeProbe, classifyNetcamError, TAPO_STREAMS,
+} from "../js/netcam.js";
+{
+  const tapo = newCamera({
+    name: "Porch", host: "192.168.1.50", username: "paul", password: "secret",
+  });
+  assert.equal(tapo.port, 554);
+  assert.equal(tapo.path, "/stream1");
+  assert.equal(buildRtspUrl(tapo), "rtsp://paul:secret@192.168.1.50:554/stream1");
+  // stream2 + a nastier password (URL-hostile characters get encoded)
+  const tricky = newCamera({
+    host: "cam.local", port: 8554, path: "stream2",
+    username: "a b", password: "p@ss:w/rd",
+  });
+  assert.equal(tricky.path, "/stream2");
+  assert.equal(
+    buildRtspUrl(tricky),
+    "rtsp://a%20b:p%40ss%3Aw%2Frd@cam.local:8554/stream2"
+  );
+  // No username → no auth section at all
+  assert.equal(
+    buildRtspUrl(newCamera({ host: "10.0.0.9" })),
+    "rtsp://10.0.0.9:554/stream1"
+  );
+
+  // Parse round-trip + plain-words failures
+  const parsed = parseRtspUrl("rtsp://paul:secret@192.168.1.50:554/stream1");
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.camera.host, "192.168.1.50");
+  assert.equal(parsed.camera.username, "paul");
+  assert.equal(parsed.camera.password, "secret");
+  assert.equal(parseRtspUrl("http://192.168.1.50/").ok, false);
+  assert.match(parseRtspUrl("http://192.168.1.50/").errors.join(" "), /rtsp:\/\//);
+  assert.equal(parseRtspUrl("").ok, false);
+  assert.equal(parseRtspUrl("rtsp://").ok, false);
+  const noPort = parseRtspUrl("rtsp://192.168.1.50/stream2");
+  assert.equal(noPort.camera.port, 554);
+  assert.equal(noPort.camera.path, "/stream2");
+
+  // Validation: good Tapo-shaped camera passes; specific problems named
+  assert.deepEqual(validateCamera(tapo), []);
+  assert.match(validateCamera(newCamera({})).join(" "), /address .* is missing/);
+  assert.match(
+    validateCamera(newCamera({ host: "rtsp://192.168.1.50" })).join(" "),
+    /just the camera's IP/
+  );
+  assert.match(
+    validateCamera(newCamera({ host: "192.168.1.50", port: 70000 })).join(" "),
+    /port has to be/
+  );
+  assert.match(
+    validateCamera(newCamera({ host: "192.168.1.50", password: "x" })).join(" "),
+    /password but no username/
+  );
+
+  // The password never survives masking
+  const masked = maskRtspUrl(buildRtspUrl(tapo));
+  assert.ok(!masked.includes("secret"), "masked URL must not contain the password");
+  assert.match(masked, /paul:••••@192\.168\.1\.50/);
+
+  // Capture args: TCP transport, stream copy, optional audio, -t only
+  // when a duration was set, output path last, and NO filter/fade words.
+  const cap = buildCaptureArgs(tapo, "out.mkv");
+  assert.deepEqual(cap.slice(0, 6), [
+    "-hide_banner", "-loglevel", "warning", "-rtsp_transport", "tcp", "-i",
+  ]);
+  assert.equal(cap[6], "rtsp://paul:secret@192.168.1.50:554/stream1");
+  assert.ok(cap.includes("-c") && cap.includes("copy"));
+  assert.ok(cap.includes("0:a:0?"), "audio is mapped optionally");
+  assert.ok(!cap.includes("-t"), "no -t without a duration");
+  assert.equal(cap[cap.length - 1], "out.mkv");
+  assert.ok(!cap.join(" ").includes("fade"), "a recording never carries a fade");
+  const capT = buildCaptureArgs(tapo, "out.mkv", { durationSec: 90 });
+  const tIdx = capT.indexOf("-t");
+  assert.ok(tIdx > 0 && capT[tIdx + 1] === "90");
+
+  // Probe args shape
+  const probe = buildFfprobeArgs(tapo);
+  assert.ok(probe.includes("-show_streams") && probe.includes("json"));
+  assert.equal(probe[probe.length - 1], buildRtspUrl(tapo));
+
+  // ffmpeg -i text parsing (Tapo-flavoured sample)
+  const ffmpegText = [
+    "Input #0, rtsp, from 'rtsp://192.168.1.50:554/stream1':",
+    "  Duration: N/A, start: 0.000000, bitrate: N/A",
+    "  Stream #0:0: Video: h264 (High) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1920x1080, 25 fps, 25 tbr, 90k tbn",
+    "  Stream #0:1: Audio: aac (LC), 8000 Hz, mono, fltp",
+  ].join("\n");
+  const pp = parseFfmpegProbeText(ffmpegText);
+  assert.deepEqual(
+    [pp.video.codec, pp.video.width, pp.video.height, pp.video.fps],
+    ["h264", 1920, 1080, 25]
+  );
+  assert.equal(pp.audio.codec, "aac");
+  const silent = parseFfmpegProbeText(
+    "  Stream #0:0: Video: hevc (Main), yuv420p, 2560x1440, 15 fps"
+  );
+  assert.equal(silent.audio, null);
+  assert.equal(silent.video.codec, "hevc");
+
+  // ffprobe JSON parsing lands in the same shape
+  const pj = parseFfprobeJson(JSON.stringify({
+    streams: [
+      { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, avg_frame_rate: "25/1" },
+      { codec_type: "audio", codec_name: "pcm_alaw" },
+    ],
+  }));
+  assert.equal(pj.video.fps, 25);
+  assert.equal(pj.audio.codec, "pcm_alaw");
+  assert.equal(parseFfprobeJson("not json").video, null);
+
+  // Plain-words summary
+  const sum = summarizeProbe(pp);
+  assert.match(sum, /1920×1080/);
+  assert.match(sum, /25 frames per second/);
+  assert.match(sum, /H\.264 video/);
+  assert.match(sum, /AAC sound/);
+  assert.match(summarizeProbe(silent), /no sound track/);
+  assert.match(summarizeProbe({ video: null }), /couldn't make sense/);
+
+  // Error classification: the three failures a user will actually meet
+  assert.equal(classifyNetcamError("rtsp: 401 Unauthorized").kind, "auth");
+  assert.match(classifyNetcamError("401 Unauthorized").message, /Tapo app/);
+  assert.equal(classifyNetcamError("Connection refused").kind, "unreachable");
+  assert.equal(classifyNetcamError("Operation timed out").kind, "unreachable");
+  assert.equal(classifyNetcamError("Server returned 404 Not Found").kind, "notfound");
+  assert.equal(classifyNetcamError("something entirely odd").kind, "unknown");
+  for (const e of ["401", "Connection refused", "404", "odd"]) {
+    assert.ok(classifyNetcamError(e).message.length > 40, "errors speak in full sentences");
+  }
+
+  // Tapo stream table is what the panel offers
+  assert.deepEqual(TAPO_STREAMS.map((t) => t.path), ["/stream1", "/stream2"]);
+
+  // Saved cameras persist in the project and survive migration
+  assert.deepEqual(emptyProject("cams").cameras, []);
+  const migCams = migrateProject(structuredClone(v2));
+  assert.deepEqual(migCams.cameras, []);
+  const withCam = emptyProject("wc");
+  withCam.cameras = [tapo];
+  assert.equal(migrateProject(withCam).cameras.length, 1);
+  assert.equal(migrateProject(withCam).cameras[0].host, "192.168.1.50");
+}
+
 console.log("ALL NODE TESTS PASSED");

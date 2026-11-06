@@ -208,6 +208,12 @@ export function emptyProject(title = "Untitled video") {
     // automatically at export — crediting the original is not optional
     // homework the user has to remember.
     sourceCredit: { title: "", creator: "", url: "" },
+    // Saved Wi-Fi cameras (Paul, Nov 5 2026): network cameras the user
+    // records from over RTSP, OBS-style — { id, name, host, port, path,
+    // username, password } as built by js/netcam.js. They live in the
+    // project file on the user's own machine, like everything else here;
+    // the password is part of the camera's address and never leaves it.
+    cameras: [],
   };
 }
 
@@ -338,6 +344,7 @@ export function overlaysAt(project, t) {
 function fillPass2Defaults(project) {
   if (project.loudnessNormalize === undefined) project.loudnessNormalize = true;
   if (!project.captionMode) project.captionMode = "burn";
+  if (!Array.isArray(project.cameras)) project.cameras = [];
   project.music = { duck: false, duckAmount: 0.6, ...(project.music || { src: null, volume: 0.8 }) };
   if (project.music.volume === undefined) project.music.volume = 0.8;
   return project;
